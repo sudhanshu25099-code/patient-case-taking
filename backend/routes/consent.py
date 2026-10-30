@@ -1,0 +1,47 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.engine import Connection
+
+from dependencies import get_db_connection
+from queries import consent_queries as q
+from schemas.consent import (
+    ConsentCreate, ConsentOut, ConsentAccessCreate, ConsentAccessOut,
+)
+
+router = APIRouter(prefix="/consent", tags=["consent"])
+
+
+@router.post("", response_model=ConsentOut, status_code=201)
+def create_consent(p: ConsentCreate, conn: Connection = Depends(get_db_connection)):
+    cid = q.create_consent(conn, p.model_dump())
+    return q.get_consent(conn, cid)
+
+
+@router.get("/{consent_id}", response_model=ConsentOut)
+def get_consent(consent_id: int, conn: Connection = Depends(get_db_connection)):
+    row = q.get_consent(conn, consent_id)
+    if not row:
+        raise HTTPException(404, "Consent not found")
+    return row
+
+
+@router.get("/patient/{patient_id}", response_model=list[ConsentOut])
+def by_patient(patient_id: int, conn: Connection = Depends(get_db_connection)):
+    return q.list_by_patient(conn, patient_id)
+
+
+@router.patch("/{consent_id}/revoke", response_model=ConsentOut)
+def revoke(consent_id: int, conn: Connection = Depends(get_db_connection)):
+    q.revoke(conn, consent_id)
+    return q.get_consent(conn, consent_id)
+
+
+@router.post("/access", response_model=ConsentAccessOut, status_code=201)
+def create_access(p: ConsentAccessCreate,
+                  conn: Connection = Depends(get_db_connection)):
+    aid = q.create_access(conn, p.model_dump())
+    return q.get_access(conn, aid)
+
+
+@router.get("/{consent_id}/access", response_model=list[ConsentAccessOut])
+def list_access(consent_id: int, conn: Connection = Depends(get_db_connection)):
+    return q.list_access(conn, consent_id)
