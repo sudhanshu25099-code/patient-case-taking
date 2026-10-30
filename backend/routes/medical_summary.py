@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.engine import Connection
+from sqlalchemy import text
 
 from dependencies import get_db_connection
 from queries import summary_queries as q
@@ -32,3 +33,23 @@ def by_patient(patient_id: int, conn: Connection = Depends(get_db_connection)):
     rows = q.list_by_patient(conn, patient_id)
     return [{**r, "document_ids": q.summary_documents(conn, r["summary_id"])}
             for r in rows]
+
+@router.post("/generate/{appointment_id}", response_model=MedicalSummaryOut)
+def generate_summary(appointment_id: int, conn: Connection = Depends(get_db_connection)):
+    snapshot = conn.execute(text("""
+        SELECT patient_id, latest_summary FROM v_previsit_snapshot WHERE appointment_id = :a
+    """), {"a": appointment_id}).mappings().first()
+    if not snapshot:
+        raise HTTPException(404, "Appointment not found")
+    
+    data = {
+        "patient_id": snapshot["patient_id"],
+        "appointment_id": appointment_id,
+        "summary_type": "Pre-visit",
+        "summary_text": snapshot["latest_summary"] or "No previous summary available.",
+        "generated_by": "System",
+        "version_no": 1,
+        "is_current": True
+    }
+    sid = q.create_summary(conn, data)
+    return {**q.get_summary(conn, sid), "document_ids": []}

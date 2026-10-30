@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.engine import Connection
+from sqlalchemy import text
 
 from dependencies import get_db_connection
 from queries import logging_queries as q
@@ -50,3 +51,10 @@ def create_audit(p: AuditTrailCreate, conn: Connection = Depends(get_db_connecti
 @router.get("/audit/{table_name}", response_model=list[AuditTrailOut])
 def audit_for_table(table_name: str, conn: Connection = Depends(get_db_connection)):
     return q.list_audit_for_table(conn, table_name)
+
+@router.get("/access/patient/{patient_id}")
+def audit_patient_access(patient_id: int, conn: Connection = Depends(get_db_connection)):
+    return conn.execute(text("""
+        SELECT log_id, user_id, action_type, action_time, remarks
+        FROM access_log WHERE patient_id = :p ORDER BY action_time DESC
+    """), {"p": patient_id}).mappings().all()

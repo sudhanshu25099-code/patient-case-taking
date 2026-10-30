@@ -30,6 +30,20 @@ def get_one(appointment_id: int, conn: Connection = Depends(get_db_connection)):
     }
 
 
+@router.put("/{appointment_id}", response_model=AppointmentOut)
+def reschedule(appointment_id: int, p: AppointmentCreate, conn: Connection = Depends(get_db_connection)):
+    if q.update_appointment(conn, appointment_id, p.model_dump()) == 0:
+        raise HTTPException(404, "Appointment not found")
+    return q.get_appointment(conn, appointment_id)
+
+
+@router.post("/{appointment_id}/check-in")
+def check_in(appointment_id: int, conn: Connection = Depends(get_db_connection)):
+    if q.check_in_appointment(conn, appointment_id) == 0:
+        raise HTTPException(404, "Appointment not found")
+    return {"ok": True}
+
+
 @router.get("/patient/{patient_id}", response_model=list[AppointmentOut])
 def by_patient(patient_id: int, conn: Connection = Depends(get_db_connection)):
     return q.list_by_patient(conn, patient_id)

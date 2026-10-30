@@ -56,3 +56,18 @@ def link_doctor(hospital_id: int, doctor_id: int, p: DoctorHospitalCreate,
 @router.get("/{hospital_id}/doctors", response_model=list[DoctorAtHospital])
 def doctors(hospital_id: int, conn: Connection = Depends(get_db_connection)):
     return q.doctors_in_hospital(conn, hospital_id)
+
+
+@router.put("/{hospital_id}", response_model=HospitalOut)
+def update_hosp(hospital_id: int, p: HospitalCreate, 
+                conn: Connection = Depends(get_db_connection)):
+    if q.update_hospital(conn, hospital_id, p.model_dump()) == 0:
+        raise HTTPException(404, "Hospital not found")
+    return q.get_hospital(conn, hospital_id)
+
+
+@router.delete("/{hospital_id}", status_code=204)
+def delete_hosp(hospital_id: int, conn: Connection = Depends(get_db_connection)):
+    if q.delete_hospital(conn, hospital_id) == 0:
+        raise HTTPException(404, "Hospital not found")
+    

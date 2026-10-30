@@ -5,6 +5,7 @@ mysql-connector-python==9.0.0
 pydantic==2.9.2
 pydantic-settings==2.5.2
 passlib[bcrypt]==1.7.4
+python-multipart
 python-dotenv==1.0.1
 
 # Frontend (Streamlit & API Client)

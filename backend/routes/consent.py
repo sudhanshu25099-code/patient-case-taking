@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.engine import Connection
+from sqlalchemy import text
 
 from dependencies import get_db_connection
 from queries import consent_queries as q
@@ -45,3 +46,18 @@ def create_access(p: ConsentAccessCreate,
 @router.get("/{consent_id}/access", response_model=list[ConsentAccessOut])
 def list_access(consent_id: int, conn: Connection = Depends(get_db_connection)):
     return q.list_access(conn, consent_id)
+
+
+@router.get("/check")
+def has_access(patient_id: int, doctor_id: int, conn: Connection = Depends(get_db_connection)):
+    row = conn.execute(text("""
+        SELECT ca.access_id FROM consent_access ca
+        JOIN patient_consent pc ON pc.consent_id = ca.consent_id
+        WHERE pc.patient_id = :p AND ca.doctor_id = :d 
+          AND pc.status = 'Active' AND ca.status = 'Active'
+          AND (pc.valid_to IS NULL OR pc.valid_to > NOW())
+    """), {"p": patient_id, "d": doctor_id}).first()
+    
+    if not row:
+        raise HTTPException(status_code=403, detail="No active consent granted to this doctor")
+    return {"has_access": True, "access_id": row[0]}

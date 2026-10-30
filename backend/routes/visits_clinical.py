@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.engine import Connection
+from sqlalchemy import text
 
 from dependencies import get_db_connection
 from queries import visit_queries as q
@@ -26,6 +27,14 @@ def get_visit(visit_id: int, conn: Connection = Depends(get_db_connection)):
     if not row:
         raise HTTPException(404, "Visit not found")
     return row
+
+@router.put("/{visit_id}", response_model=VisitOut)
+def update_visit_data(visit_id: int, p: VisitCreate, conn: Connection = Depends
+                      (get_db_connection)):
+    if q.update_visit(conn, visit_id, p.model_dump()) == 0:
+        raise HTTPException(404, "Visit not found")
+    return q.get_visit(conn, visit_id)
+
 
 
 @router.get("/patient/{patient_id}", response_model=list[VisitOut])
@@ -106,3 +115,23 @@ def create_presc(p: PrescriptionCreate, conn: Connection = Depends(get_db_connec
         **data,
         "items": q.list_prescription_items(conn, pid),
     }
+
+@router.get("/{visit_id}/full-summary")
+def get_full_summary(visit_id: int, conn: Connection = Depends(get_db_connection)):
+    return {
+        "visit": q.get_visit(conn, visit_id),
+        "diagnoses": q.list_diagnoses(conn, visit_id),
+        "procedures": q.list_procedures(conn, visit_id),
+        "notes": q.list_visit_notes(conn, visit_id),
+        "prescriptions": conn.execute(text("SELECT * FROM prescription WHERE visit_id = :v"), {"v": visit_id}).mappings().all()
+    }
+
+@router.patch("/allergies/{allergy_id}/resolve")
+def resolve_allergy(allergy_id: int, conn: Connection = Depends(get_db_connection)):
+    conn.execute(text("UPDATE allergy SET status = 'Resolved' WHERE allergy_id = :id"), {"id": allergy_id})
+    return {"ok": True}
+
+@router.patch("/conditions/{condition_id}/status")
+def change_condition_status(condition_id: int, status: str = Body(..., embed=True), conn: Connection = Depends(get_db_connection)):
+    conn.execute(text("UPDATE patient_condition SET status = :s WHERE condition_id = :id"), {"s": status, "id": condition_id})
+    return {"ok": True}

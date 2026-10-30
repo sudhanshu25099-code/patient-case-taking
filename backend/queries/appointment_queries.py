@@ -25,6 +25,17 @@ def get_appointment(conn: Connection, appointment_id: int):
     ).mappings().first()
 
 
+def update_appointment(conn, id, d): 
+    return conn.execute(text("""
+        UPDATE appointment SET appointment_date=:appointment_date, time_slot=:time_slot,
+          reason=:reason, status=:status WHERE appointment_id=:id
+    """), {**d, "id": id}).rowcount
+
+def check_in_appointment(conn, id): 
+    return conn.execute(text("""
+        UPDATE appointment SET status='Completed' WHERE appointment_id=:id
+    """), {"id": id}).rowcount
+
 def list_by_patient(conn: Connection, patient_id: int):
     return conn.execute(text(f"""
         SELECT {APPT_COLS} FROM appointment

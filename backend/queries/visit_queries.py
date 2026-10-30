@@ -82,6 +82,13 @@ def get_visit_note(conn: Connection, note_id: int):
         FROM visit_note WHERE note_id = :id
     """), {"id": note_id}).mappings().first()
 
+def update_visit(conn, id, d): 
+    return conn.execute(text("""
+        UPDATE visit SET chief_complaint=:chief_complaint, symptoms=:symptoms, 
+        vitals_summary=:vitals_summary, notes=:notes 
+        WHERE visit_id=:id
+    """), {**d, "id": id}).rowcount
+
 
 def list_visit_notes(conn: Connection, visit_id: int):
     return conn.execute(text("""

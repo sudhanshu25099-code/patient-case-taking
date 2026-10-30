@@ -4,10 +4,12 @@ from sqlalchemy.engine import Connection
 
 from dependencies import get_db_connection
 from queries import identity_queries as q
+from .auth import verify_user 
 from schemas.identity import (
     PersonCreate, PersonOut, UserAccountCreate, UserAccountOut,
     RoleCreate, RoleOut, PatientProfileCreate, PatientProfileOut,
     DoctorProfileCreate, DoctorProfileOut, NurseProfileCreate, NurseProfileOut,
+    PasswordUpdate, RoleAssignment
 )
 
 router = APIRouter(prefix="/identity", tags=["identity"])
@@ -114,3 +116,25 @@ def create_nurse(p: NurseProfileCreate,
                  conn: Connection = Depends(get_db_connection)):
     nid = q.create_nurse(conn, p.model_dump())
     return q.get_nurse(conn, nid)
+
+@router.patch("/users/{user_id}/password")
+def change_password(
+    user_id: int, 
+    p: PasswordUpdate, 
+    conn: Connection = Depends(get_db_connection),
+    current_user: dict = Depends(verify_user) # Protected by Basic Auth
+):
+    new_hash = pwd.hash(p.new_password)
+    if q.update_password(conn, user_id, new_hash) == 0:
+        raise HTTPException(404, "User not found")
+    return {"ok": True, "message": "Password updated successfully"}
+
+@router.post("/users/{user_id}/roles", status_code=201)
+def assign_role(
+    user_id: int, 
+    p: RoleAssignment, 
+    conn: Connection = Depends(get_db_connection),
+    current_user: dict = Depends(verify_user) # Protected by Basic Auth
+):
+    q.assign_role(conn, user_id, p.role_id)
+    return {"ok": True, "message": "Role assigned"}

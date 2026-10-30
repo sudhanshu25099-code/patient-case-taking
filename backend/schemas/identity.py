@@ -95,6 +95,12 @@ class NurseProfileCreate(BaseModel):
     employee_no: str
     shift: Optional[Literal["Morning", "Evening", "Night"]] = None
 
-
 class NurseProfileOut(NurseProfileCreate):
     nurse_id: int
+
+
+class PasswordUpdate(BaseModel):
+    new_password: str
+
+class RoleAssignment(BaseModel):
+    role_id: int

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routes import auth
 from config import settings
 from routes import (
     identity, hospital, appointments, visits_clinical, diagnostics,
@@ -8,6 +9,8 @@ from routes import (
 )
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
+
+app.include_router(auth.router)
 
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True,

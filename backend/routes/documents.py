@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import shutil
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.engine import Connection
+from sqlalchemy import text
 
 from dependencies import get_db_connection
 from queries import document_queries as q
@@ -58,3 +61,38 @@ def get_doc(document_id: int, conn: Connection = Depends(get_db_connection)):
 def by_patient(patient_id: int, conn: Connection = Depends(get_db_connection)):
     rows = q.list_documents_by_patient(conn, patient_id)
     return [{**r, "tag_ids": q.doc_tags(conn, r["document_id"])} for r in rows]
+
+
+@router.post("/upload", status_code=201)
+def upload_file(
+    patient_id: int = Form(...), document_type_id: int = Form(...),
+    title: str = Form(...), uploaded_by: int = Form(...),
+    file: UploadFile = File(...), conn: Connection = Depends(get_db_connection)
+):
+    os.makedirs("uploads", exist_ok=True)
+    file_path = f"uploads/{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    data = {
+        "patient_id": patient_id, "document_type_id": document_type_id,
+        "title": title, "file_path": file_path, "uploaded_by": uploaded_by,
+        "visit_id": None, "test_result_id": None, "description": None,
+        "file_size": os.path.getsize(file_path), "mime_type": file.content_type,
+        "document_date": None, "ocr_text": None, "ocr_status": "Pending", 
+        "verification_status": "Pending"
+    }
+    did = q.create_document(conn, data)
+    return q.get_document(conn, did)
+
+@router.patch("/{document_id}/verify")
+def verify_doc(document_id: int, conn: Connection = Depends(get_db_connection)):
+    conn.execute(text("""
+    UPDATE medical_document SET verification_status = 'Verified' 
+    WHERE document_id = :id
+    """), {"id": document_id})
+    return {"ok": True}
+
+@router.delete("/{document_id}", status_code=204)
+def delete_doc(document_id: int, conn: Connection = Depends(get_db_connection)):
+    conn.execute(text("DELETE FROM medical_document WHERE document_id = :id"), {"id": document_id})

@@ -28,6 +28,20 @@ def list_hospitals(conn: Connection, limit: int = 100, offset: int = 0):
     """), {"l": limit, "o": offset}).mappings().all()
 
 
+def update_hospital(conn, id, d): 
+    return conn.execute(text("""
+        UPDATE hospital SET name=:name, registration_no=:registration_no,
+          address=:address, city=:city, state=:state, contact_no=:contact_no, email=:email 
+        WHERE hospital_id=:id
+    """), {**d, "id": id}).rowcount
+
+
+def delete_hospital(conn, id): 
+    return conn.execute(text("""
+        DELETE FROM hospital WHERE hospital_id=:id
+    """), {"id": id}).rowcount
+
+
 def create_department(conn: Connection, d: dict) -> int:
     return conn.execute(text("""
         INSERT INTO department (hospital_id, name, description)

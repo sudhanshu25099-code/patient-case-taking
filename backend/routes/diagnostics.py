@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.engine import Connection
+from sqlalchemy import text
 
 from dependencies import get_db_connection
 from queries import diagnostic_queries as q
@@ -57,3 +58,14 @@ def create_result(p: TestResultCreate, conn: Connection = Depends(get_db_connect
     for item in p.items:
         q.add_result_item(conn, {**item.model_dump(), "result_id": rid})
     return {**q.get_result(conn, rid), "items": q.list_result_items(conn, rid)}
+
+
+@router.patch("/orders/{order_id}/status")
+def change_order_status(order_id: int, status: str = Body(..., embed=True), conn: Connection = Depends(get_db_connection)):
+    conn.execute(text("UPDATE test_order SET status = :s WHERE order_id = :id"), {"s": status, "id": order_id})
+    return {"ok": True}
+
+@router.put("/results/{result_id}/verify")
+def verify_lab_result(result_id: int, verified_by: int, conn: Connection = Depends(get_db_connection)):
+    conn.execute(text("UPDATE test_result SET verification_status = 'Verified', verified_by = :u WHERE result_id = :id"), {"u": verified_by, "id": result_id})
+    return {"ok": True}

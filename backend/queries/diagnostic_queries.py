@@ -59,6 +59,10 @@ def list_order_items(conn: Connection, order_id: int):
         FROM test_order_item WHERE order_id = :o
     """), {"o": order_id}).mappings().all()
 
+def list_orders_by_visit(conn, v): 
+    return conn.execute(text("""
+        SELECT * FROM test_order WHERE visit_id=:v
+    """), {"v": v}).mappings().all()
 
 def create_result(conn: Connection, d: dict) -> int:
     return conn.execute(text("""
@@ -92,3 +96,4 @@ def list_result_items(conn: Connection, result_id: int):
         SELECT result_item_id, result_id, parameter_id, result_value, flag, notes
         FROM test_result_item WHERE result_id = :r
     """), {"r": result_id}).mappings().all()
+
