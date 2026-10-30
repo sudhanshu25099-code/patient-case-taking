@@ -1,14 +1,12 @@
-# Backend (FastAPI & Server)
-
-fastapi
-uvicorn[standard]
-pydantic[email]
-python-dotenv
-
-# Database
-mysql-connector-python
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+sqlalchemy==2.0.35
+mysql-connector-python==9.0.0
+pydantic==2.9.2
+pydantic-settings==2.5.2
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.1
 
 # Frontend (Streamlit & API Client)
 streamlit
-
 requests
