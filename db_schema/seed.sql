@@ -69,7 +69,7 @@ INSERT INTO test_parameter (parameter_id, test_id, parameter_name, unit, referen
 -- =====================================================================
 
 INSERT INTO person (person_id, full_name, date_of_birth, gender, phone, email, address, city, state) VALUES
- (1 ,'Amit Malhotra' ,'1980-04-12','Male'  ,'9810000001','amit.malhotra@example.com' ,'12 Rajpath Road'      ,'New Delhi','Delhi'),
+ (1 ,'Sudhanshu Jha' ,'1980-04-12','Male'  ,'9810000001','sudhanshu@example.com' ,'12 Rajpath Road'      ,'New Delhi','Delhi'),
  (2 ,'Rajesh Sharma' ,'1975-08-19','Male'  ,'9810000002','rajesh.sharma@example.com' ,'45 Lodhi Colony'      ,'New Delhi','Delhi'),
  (3 ,'Anita Verma'   ,'1978-01-25','Female','9810000003','anita.verma@example.com'   ,'8 Sector 15'         ,'Noida'    ,'Uttar Pradesh'),
  (4 ,'Sandeep Gupta' ,'1972-06-30','Male'  ,'9810000004','sandeep.gupta@example.com' ,'22 Vasant Vihar'     ,'New Delhi','Delhi'),
@@ -89,22 +89,22 @@ INSERT INTO person (person_id, full_name, date_of_birth, gender, phone, email, a
 
 -- Placeholder hash for every demo user (NOT a real hash, login will fail until replaced)
 INSERT INTO user_account (user_id, person_id, username, email, password_hash, is_active, last_login) VALUES
- (1 ,1 ,'admin'        ,'amit.malhotra@example.com' ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 09:10:00'),
- (2 ,2 ,'dr.sharma'    ,'rajesh.sharma@example.com' ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 08:45:00'),
- (3 ,3 ,'dr.verma'     ,'anita.verma@example.com'   ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 10:20:00'),
- (4 ,4 ,'dr.gupta'     ,'sandeep.gupta@example.com' ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-28 17:05:00'),
- (5 ,5 ,'dr.nair'      ,'priya.nair@example.com'    ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 11:00:00'),
- (6 ,6 ,'dr.singh'     ,'vikram.singh@example.com'  ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-27 14:30:00'),
- (7 ,7 ,'dr.kapoor'    ,'neha.kapoor@example.com'   ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 12:15:00'),
- (8 ,8 ,'nurse.rao'    ,'sunita.rao@example.com'    ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 07:55:00'),
- (9 ,9 ,'nurse.yadav'  ,'deepak.yadav@example.com'  ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-28 21:40:00'),
- (10,10,'aarav.mehta'  ,'aarav.mehta@example.com'   ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 19:30:00'),
- (11,11,'simran.kaur'  ,'simran.kaur@example.com'   ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-28 20:10:00'),
- (12,12,'rohan.das'    ,'rohan.das@example.com'     ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-19 18:00:00'),
- (13,13,'fatima.khan'  ,'fatima.khan@example.com'   ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 22:05:00'),
- (14,14,'kavita.joshi' ,'kavita.joshi@example.com'  ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-26 16:45:00'),
- (15,15,'arjun.reddy'  ,'arjun.reddy@example.com'   ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-24 13:20:00'),
- (16,16,'meera.iyer'   ,'meera.iyer@example.com'    ,'$2b$12$REPLACE_WITH_REAL_HASH_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',TRUE,'2026-10-29 09:50:00');
+ (1 ,1 ,'admin'        ,'sudhanshu@example.com'     ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 09:10:00'),
+ (2 ,2 ,'dr.sharma'    ,'rajesh.sharma@example.com' ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 08:45:00'),
+ (3 ,3 ,'dr.verma'     ,'anita.verma@example.com'   ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 10:20:00'),
+ (4 ,4 ,'dr.gupta'     ,'sandeep.gupta@example.com' ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-28 17:05:00'),
+ (5 ,5 ,'dr.nair'      ,'priya.nair@example.com'    ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 11:00:00'),
+ (6 ,6 ,'dr.singh'     ,'vikram.singh@example.com'  ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-27 14:30:00'),
+ (7 ,7 ,'dr.kapoor'    ,'neha.kapoor@example.com'   ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 12:15:00'),
+ (8 ,8 ,'nurse.rao'    ,'sunita.rao@example.com'    ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 07:55:00'),
+ (9 ,9 ,'nurse.yadav'  ,'deepak.yadav@example.com'  ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-28 21:40:00'),
+ (10,10,'aarav.mehta'  ,'aarav.mehta@example.com'   ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 19:30:00'),
+ (11,11,'simran.kaur'  ,'simran.kaur@example.com'   ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-28 20:10:00'),
+ (12,12,'rohan.das'    ,'rohan.das@example.com'     ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-19 18:00:00'),
+ (13,13,'fatima.khan'  ,'fatima.khan@example.com'   ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 22:05:00'),
+ (14,14,'kavita.joshi' ,'kavita.joshi@example.com'  ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-26 16:45:00'),
+ (15,15,'arjun.reddy'  ,'arjun.reddy@example.com'   ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-24 13:20:00'),
+ (16,16,'meera.iyer'   ,'meera.iyer@example.com'    ,'$2b$12$nAZjiMIpx/jVgADqVibnCONfQyT2hd26RMBiKGAU/oeZ38E7DcyP2',TRUE,'2026-10-29 09:50:00');
 
 -- To set a real password for everyone at once (hash generated by your backend):
 -- UPDATE user_account SET password_hash = '<paste real bcrypt hash of your demo password>';
