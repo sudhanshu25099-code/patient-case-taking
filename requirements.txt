@@ -1,0 +1,14 @@
+# Backend (FastAPI & Server)
+
+fastapi
+uvicorn[standard]
+pydantic[email]
+python-dotenv
+
+# Database
+mysql-connector-python
+
+# Frontend (Streamlit & API Client)
+streamlit
+
+requests
