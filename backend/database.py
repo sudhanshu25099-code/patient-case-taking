@@ -1,9 +1,14 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, URL
 from config import settings
 
-DATABASE_URL = (
-    f"mysql+mysqlconnector://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}?charset=utf8mb4"
+DATABASE_URL = URL.create(
+    drivername="mysql+mysqlconnector",
+    username=settings.DB_USER,
+    password=settings.DB_PASSWORD,
+    host=settings.DB_HOST,
+    port=int(settings.DB_PORT),
+    database=settings.DB_NAME,
+    query={"charset": "utf8mb4"},
 )
 
 engine = create_engine(
