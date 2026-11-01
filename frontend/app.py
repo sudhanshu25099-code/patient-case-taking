@@ -22,7 +22,7 @@ from views.admin_views import (
 )
 
 st.set_page_config(
-    page_title="HealthPulse Clinical EHR",
+    page_title="Clinical EHR",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"

@@ -10,7 +10,7 @@ def render_login_view():
     st.markdown("""
         <div style="text-align: center; margin-bottom: 24px;">
             <span style="font-size: 3rem;">🏥</span>
-            <h1 style="color: #0F172A; margin: 4px 0;">HealthPulse Clinical EHR</h1>
+            <h1 style="color: #0F172A; margin: 4px 0;">Clinical EHR</h1>
             <p style="color: #64748B; font-size: 1.05rem;">
                 Unified Role-Based Access for Doctors, Nurses, Patients & Hospital Administration
             </p>
