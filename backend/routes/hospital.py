@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import IntegrityError
 
 from dependencies import get_db_connection
 from queries import hospital_queries as q
@@ -13,14 +14,25 @@ router = APIRouter(prefix="/hospitals", tags=["hospital"])
 
 @router.post("", response_model=HospitalOut, status_code=201)
 def create(p: HospitalCreate, conn: Connection = Depends(get_db_connection)):
-    hid = q.create_hospital(conn, p.model_dump())
-    return q.get_hospital(conn, hid)
+    try:
+        hid = q.create_hospital(conn, p.model_dump())
+        return q.get_hospital(conn, hid)
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A hospital with registration '{p.registration_no}' already exists."
+        )
 
 
 @router.get("", response_model=list[HospitalOut])
 def list_all(limit: int = 100, offset: int = 0,
              conn: Connection = Depends(get_db_connection)):
     return q.list_hospitals(conn, limit, offset)
+
+
+@router.get("/affiliations/all")
+def all_affiliations(conn: Connection = Depends(get_db_connection)):
+    return [dict(r) for r in q.list_all_doctor_affiliations(conn)]
 
 
 @router.get("/{hospital_id}", response_model=HospitalOut)
@@ -35,8 +47,14 @@ def get_one(hospital_id: int, conn: Connection = Depends(get_db_connection)):
 def create_dept(hospital_id: int, p: DepartmentCreate,
                 conn: Connection = Depends(get_db_connection)):
     d = {**p.model_dump(), "hospital_id": hospital_id}
-    did = q.create_department(conn, d)
-    return {**d, "department_id": did}
+    try:
+        did = q.create_department(conn, d)
+        return {**d, "department_id": did}
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Department '{p.name}' already exists in this hospital."
+        )
 
 
 @router.get("/{hospital_id}/departments", response_model=list[DepartmentOut])
@@ -70,4 +88,3 @@ def update_hosp(hospital_id: int, p: HospitalCreate,
 def delete_hosp(hospital_id: int, conn: Connection = Depends(get_db_connection)):
     if q.delete_hospital(conn, hospital_id) == 0:
         raise HTTPException(404, "Hospital not found")
-    

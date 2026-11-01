@@ -58,3 +58,14 @@ def audit_patient_access(patient_id: int, conn: Connection = Depends(get_db_conn
         SELECT log_id, user_id, action_type, action_time, remarks
         FROM access_log WHERE patient_id = :p ORDER BY action_time DESC
     """), {"p": patient_id}).mappings().all()
+
+
+@router.get("/db/processlist")
+def running_queries(conn: Connection = Depends(get_db_connection)):
+    rows = conn.execute(text("""
+        SELECT ID as thread_id, USER as db_user, HOST as host, DB as db_name,
+               COMMAND as command, TIME as time_seconds, STATE as state, INFO as query
+        FROM information_schema.PROCESSLIST
+        ORDER BY TIME DESC
+    """)).mappings().all()
+    return [dict(r) for r in rows]

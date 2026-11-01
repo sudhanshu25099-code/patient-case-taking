@@ -35,6 +35,8 @@ def admin_overview_view():
     st.subheader("🏥 Network Facilities")
     if hospitals:
         st.dataframe(pd.DataFrame(hospitals), use_container_width=True, hide_index=True)
+    else:
+        st.info("No facilities found.")
 
     st.subheader("📅 Recent Appointments")
     if appointments:
@@ -49,8 +51,9 @@ def admin_hospitals_view():
         "🏢 Hospital Facilities", "➕ Add Hospital", "🏬 Add Department", "🔗 Doctor Affiliations"
     ])
 
+    hospitals = fetch_json("/hospitals", [])
+
     with tab_view:
-        hospitals = fetch_json("/hospitals", [])
         if hospitals:
             st.dataframe(pd.DataFrame(hospitals), use_container_width=True, hide_index=True)
             
@@ -63,6 +66,8 @@ def admin_hospitals_view():
                 st.dataframe(pd.DataFrame(depts), use_container_width=True, hide_index=True)
             else:
                 st.info("No departments registered for this hospital yet.")
+        else:
+            st.info("No hospitals found. Use the 'Add Hospital' tab to create one.")
 
     with tab_add_hosp:
         with st.form("add_hospital_form"):
@@ -90,58 +95,85 @@ def admin_hospitals_view():
                     st.success(f"✅ Hospital registered! ID: #{res.json().get('hospital_id')}")
                     st.rerun()
                 else:
-                    st.error("Failed to register hospital.")
+                    detail = res.json().get("detail") if res else "Connection failed"
+                    st.error(f"Failed to register hospital: {detail}")
 
     with tab_add_dept:
-        hospitals = fetch_json("/hospitals", [])
+        st.subheader("Add Department to Healthcare Facility")
         if hospitals:
             h_map = {h["name"]: h["hospital_id"] for h in hospitals}
-            with st.form("add_dept_form"):
-                st.subheader("Add Department")
-                sel_h = st.selectbox("Hospital", list(h_map.keys()))
-                dept_name = st.text_input("Department Name", placeholder="e.g. Cardiology, Neurology, Orthopedics")
-                desc = st.text_input("Description", placeholder="Inpatient and outpatient cardiac care")
+            sel_h = st.selectbox("Select Hospital", list(h_map.keys()), key="dept_sel_hosp")
+            sel_hid = h_map[sel_h]
+            current_depts = fetch_json(f"/hospitals/{sel_hid}/departments", [])
+            if current_depts:
+                dept_names = [d["name"] for d in current_depts]
+                st.info(f"📋 **Existing departments in {sel_h}:** " + ", ".join([f"`{n}`" for n in dept_names]))
+        else:
+            sel_hid = st.number_input("Hospital ID", min_value=1, value=1)
 
-                if st.form_submit_button("Create Department", type="primary"):
-                    payload = {"name": dept_name, "description": desc}
-                    res = api_request("POST", f"/hospitals/{h_map[sel_h]}/departments", json=payload)
+        with st.form("add_dept_form"):
+            dept_name = st.text_input("New Department Name", placeholder="e.g. Oncology, Radiology, Nephrology")
+            desc = st.text_input("Description", placeholder="Inpatient and outpatient specialized care")
+
+            if st.form_submit_button("Create Department", type="primary"):
+                if not dept_name.strip():
+                    st.warning("Please provide a department name.")
+                else:
+                    payload = {"name": dept_name.strip(), "description": desc}
+                    res = api_request("POST", f"/hospitals/{sel_hid}/departments", json=payload)
                     if res and res.status_code == 201:
                         st.success(f"✅ Department created! ID: #{res.json().get('department_id')}")
+                        st.rerun()
                     else:
-                        st.error("Failed to create department.")
+                        detail = res.json().get("detail") if res else "Connection error"
+                        st.error(f"Failed to create department: {detail}")
 
     with tab_link_doc:
-        hospitals = fetch_json("/hospitals", [])
+        st.subheader("Current Doctor Affiliations Across Network")
+        affiliations = fetch_json("/hospitals/affiliations/all", [])
+        if affiliations:
+            st.dataframe(pd.DataFrame(affiliations), use_container_width=True, hide_index=True)
+            
+        st.markdown("---")
         doctors = fetch_json("/identity/doctors", [])
-        if hospitals and doctors:
-            h_map = {h["name"]: h["hospital_id"] for h in hospitals}
-            d_map = {f"Dr. {d['full_name']} ({d.get('specialization', 'Physician')})": d["doctor_id"] for d in doctors}
-
-            with st.form("link_doc_form"):
-                st.subheader("Affiliate Doctor to Hospital")
+        with st.form("link_doc_form"):
+            st.subheader("Affiliate / Update Doctor Affiliation")
+            if hospitals:
+                h_map = {h["name"]: h["hospital_id"] for h in hospitals}
                 sel_h = st.selectbox("Select Hospital", list(h_map.keys()))
-                sel_d = st.selectbox("Select Doctor", list(d_map.keys()))
+                sel_hid = h_map[sel_h]
+            else:
+                sel_hid = st.number_input("Hospital ID", min_value=1, value=1)
 
-                if st.form_submit_button("Affiliate Doctor", type="primary"):
-                    payload = {
-                        "doctor_id": d_map[sel_d],
-                        "hospital_id": h_map[sel_h],
-                        "joined_date": str(date.today()),
-                        "is_active": True
-                    }
-                    res = api_request("POST", f"/hospitals/{h_map[sel_h]}/doctors/{d_map[sel_d]}", json=payload)
-                    if res and res.status_code in [200, 201]:
-                        st.success("✅ Doctor affiliation recorded!")
-                    else:
-                        st.error("Could not link doctor.")
+            if doctors:
+                d_map = {f"Dr. {d['full_name']} ({d.get('specialization', 'Physician')})": d["doctor_id"] for d in doctors}
+                sel_d = st.selectbox("Select Doctor", list(d_map.keys()))
+                sel_did = d_map[sel_d]
+            else:
+                sel_did = st.number_input("Doctor ID", min_value=1, value=1)
+
+            if st.form_submit_button("Affiliate Doctor", type="primary"):
+                payload = {
+                    "doctor_id": sel_did,
+                    "hospital_id": sel_hid,
+                    "joined_date": str(date.today()),
+                    "is_active": True
+                }
+                res = api_request("POST", f"/hospitals/{sel_hid}/doctors/{sel_did}", json=payload)
+                if res and res.status_code in [200, 201]:
+                    st.success("✅ Doctor affiliation recorded/updated successfully!")
+                    st.rerun()
+                else:
+                    detail = res.json().get("detail") if res else "Connection error"
+                    st.error(f"Could not link doctor: {detail}")
 
 
 def admin_users_view():
     check_login()
-    page_header("User & Identity Management", "👥", "Manage persons, user accounts, role assignments, and clinical staff profiles")
+    page_header("User & Identity Management", "👥", "Manage persons, user accounts, role assignments, passwords, and staff profiles")
 
-    tab_users, tab_person, tab_user, tab_role, tab_prof = st.tabs([
-        "📋 User Directory", "➕ Register Person", "🔑 Create User Account", "🛡️ Assign Role", "🏥 Create Staff Profile"
+    tab_users, tab_person, tab_user, tab_role, tab_pass, tab_prof = st.tabs([
+        "📋 User Directory", "➕ Register Person", "🔑 Create User Account", "🛡️ Assign Role", "🔒 Reset Password", "🏥 Create Staff Profile"
     ])
 
     with tab_users:
@@ -186,14 +218,19 @@ def admin_users_view():
 
         with st.form("create_user_account_form"):
             st.subheader("Create Login Credentials for Person")
-            sel_p = st.selectbox("Select Person", list(p_map.keys()))
+            if p_map:
+                sel_p = st.selectbox("Select Person", list(p_map.keys()))
+                sel_pid = p_map[sel_p]
+            else:
+                sel_pid = st.number_input("Person ID", min_value=1, value=1)
+
             username = st.text_input("Username", placeholder="e.g. dr.ramesh")
             email = st.text_input("Email", placeholder="ramesh@example.com")
             password = st.text_input("Initial Password", type="password", placeholder="Minimum 6 characters")
 
             if st.form_submit_button("Create User Account", type="primary"):
                 payload = {
-                    "person_id": p_map[sel_p],
+                    "person_id": sel_pid,
                     "username": username,
                     "email": email,
                     "password": password,
@@ -214,17 +251,37 @@ def admin_users_view():
 
         with st.form("assign_role_form"):
             st.subheader("Assign System Role")
-            sel_u = st.selectbox("Select User", list(u_map.keys()))
-            sel_r = st.selectbox("Select Role to Assign", list(r_map.keys()))
+            if u_map and r_map:
+                sel_u = st.selectbox("Select User", list(u_map.keys()))
+                sel_r = st.selectbox("Select Role to Assign", list(r_map.keys()))
 
-            if st.form_submit_button("Assign Role", type="primary"):
-                payload = {"role_id": r_map[sel_r]}
-                res = api_request("POST", f"/identity/users/{u_map[sel_u]}/roles", json=payload)
-                if res and res.status_code in [200, 201]:
-                    st.success(f"✅ Role '{sel_r}' successfully assigned!")
-                    st.rerun()
-                else:
-                    st.error("Failed to assign role.")
+                if st.form_submit_button("Assign Role", type="primary"):
+                    payload = {"role_id": r_map[sel_r]}
+                    res = api_request("POST", f"/identity/users/{u_map[sel_u]}/roles", json=payload)
+                    if res and res.status_code in [200, 201]:
+                        st.success(f"✅ Role '{sel_r}' successfully assigned!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to assign role.")
+            else:
+                st.info("Users or roles not available.")
+
+    with tab_pass:
+        users = fetch_json("/identity/users", [])
+        u_map = {f"{u['username']} ({u['full_name']})": u["user_id"] for u in users} if users else {}
+        with st.form("reset_password_form"):
+            st.subheader("Reset User Password")
+            if u_map:
+                sel_user = st.selectbox("Select User", list(u_map.keys()))
+                new_pass = st.text_input("New Password", type="password")
+
+                if st.form_submit_button("Update Password", type="primary"):
+                    uid = u_map[sel_user]
+                    res_p = api_request("PATCH", f"/identity/users/{uid}/password", json={"new_password": new_pass})
+                    if res_p and res_p.status_code == 200:
+                        st.success("✅ Password updated successfully!")
+                    else:
+                        st.error("Failed to update password.")
 
     with tab_prof:
         st.subheader("Create Doctor, Nurse or Patient Clinical Profile")
@@ -235,49 +292,52 @@ def admin_users_view():
 
         if profile_type == "Doctor Profile":
             with st.form("create_doc_prof"):
-                sel_p = st.selectbox("Person", list(p_map.keys()))
+                sel_p = st.selectbox("Person", list(p_map.keys())) if p_map else None
                 lic = st.text_input("License No", placeholder="DMC-99881")
                 spec = st.text_input("Specialization", placeholder="Cardiology")
                 qual = st.text_input("Qualification", placeholder="MBBS, MD (Cardiology)")
                 fee = st.number_input("Consultation Fee (INR)", min_value=0, value=700)
 
                 if st.form_submit_button("Create Doctor Profile", type="primary"):
-                    payload = {
-                        "person_id": p_map[sel_p], "license_no": lic, "specialization": spec,
-                        "qualification": qual, "consultation_fee": fee, "experience_years": 8
-                    }
-                    res = api_request("POST", "/identity/doctors", json=payload)
-                    if res and res.status_code == 201:
-                        st.success(f"✅ Doctor profile created! Doctor ID: #{res.json().get('doctor_id')}")
+                    if sel_p:
+                        payload = {
+                            "person_id": p_map[sel_p], "license_no": lic, "specialization": spec,
+                            "qualification": qual, "consultation_fee": fee, "experience_years": 8
+                        }
+                        res = api_request("POST", "/identity/doctors", json=payload)
+                        if res and res.status_code == 201:
+                            st.success(f"✅ Doctor profile created! Doctor ID: #{res.json().get('doctor_id')}")
 
         elif profile_type == "Nurse Profile":
             with st.form("create_nurse_prof"):
-                sel_p = st.selectbox("Person", list(p_map.keys()))
+                sel_p = st.selectbox("Person", list(p_map.keys())) if p_map else None
                 emp_no = st.text_input("Employee No", placeholder="NUR-2026-01")
                 shift = st.selectbox("Assigned Shift", ["Morning", "Evening", "Night"])
 
                 if st.form_submit_button("Create Nurse Profile", type="primary"):
-                    payload = {"person_id": p_map[sel_p], "employee_no": emp_no, "shift": shift}
-                    res = api_request("POST", "/identity/nurses", json=payload)
-                    if res and res.status_code == 201:
-                        st.success(f"✅ Nurse profile created! Nurse ID: #{res.json().get('nurse_id')}")
+                    if sel_p:
+                        payload = {"person_id": p_map[sel_p], "employee_no": emp_no, "shift": shift}
+                        res = api_request("POST", "/identity/nurses", json=payload)
+                        if res and res.status_code == 201:
+                            st.success(f"✅ Nurse profile created! Nurse ID: #{res.json().get('nurse_id')}")
 
         else:
             with st.form("create_pat_prof"):
-                sel_p = st.selectbox("Person", list(p_map.keys()))
+                sel_p = st.selectbox("Person", list(p_map.keys())) if p_map else None
                 bg = st.selectbox("Blood Group", ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
                 em_name = st.text_input("Emergency Contact Name")
                 em_phone = st.text_input("Emergency Contact Phone")
 
                 if st.form_submit_button("Create Patient Profile", type="primary"):
-                    payload = {
-                        "person_id": p_map[sel_p], "blood_group": bg,
-                        "emergency_contact_name": em_name, "emergency_contact_phone": em_phone,
-                        "abha_linked": False
-                    }
-                    res = api_request("POST", "/identity/patients", json=payload)
-                    if res and res.status_code == 201:
-                        st.success(f"✅ Patient profile created! Patient ID: #{res.json().get('patient_id')}")
+                    if sel_p:
+                        payload = {
+                            "person_id": p_map[sel_p], "blood_group": bg,
+                            "emergency_contact_name": em_name, "emergency_contact_phone": em_phone,
+                            "abha_linked": False
+                        }
+                        res = api_request("POST", "/identity/patients", json=payload)
+                        if res and res.status_code == 201:
+                            st.success(f"✅ Patient profile created! Patient ID: #{res.json().get('patient_id')}")
 
 
 def admin_appointments_view():
@@ -317,35 +377,139 @@ def admin_diagnostics_view():
     check_login()
     page_header("Diagnostics & Lab Catalog Master", "🔬", "Manage diagnostic test catalog, standard reference panels, and parameters")
 
-    tests = fetch_json("/diagnostics/tests", [])
-    st.dataframe(pd.DataFrame(tests), use_container_width=True, hide_index=True)
+    tab_cat, tab_add_t, tab_add_p = st.tabs(["📋 Test Catalog", "➕ Add Test", "🧪 Add Parameter"])
+
+    with tab_cat:
+        tests = fetch_json("/diagnostics/tests", [])
+        st.dataframe(pd.DataFrame(tests), use_container_width=True, hide_index=True)
+
+    with tab_add_t:
+        with st.form("add_test_form"):
+            st.subheader("Add Diagnostic Test to Catalog")
+            t_name = st.text_input("Test Name", placeholder="e.g. Vitamin D3 (25-OH)")
+            cat = st.selectbox("Category", ["Blood", "Urine", "Imaging", "Pathology", "Biochemistry", "Other"])
+            desc = st.text_input("Description", placeholder="Serum 25-hydroxyvitamin D measurement")
+
+            if st.form_submit_button("Add Test", type="primary"):
+                payload = {"test_name": t_name, "category": cat, "description": desc}
+                res = api_request("POST", "/diagnostics/tests", json=payload)
+                if res and res.status_code == 201:
+                    st.success(f"✅ Diagnostic test added! Test ID: #{res.json().get('test_id')}")
+                    st.rerun()
+
+    with tab_add_p:
+        tests = fetch_json("/diagnostics/tests", [])
+        if tests:
+            t_map = {t["test_name"]: t["test_id"] for t in tests}
+            with st.form("add_param_form"):
+                st.subheader("Add Test Parameter")
+                sel_test = st.selectbox("Diagnostic Test", list(t_map.keys()))
+                p_name = st.text_input("Parameter Name", placeholder="e.g. Hemoglobin, Total Leukocyte Count")
+                unit = st.text_input("Measurement Unit", placeholder="g/dL, mg/dL, /mcL")
+                ref_range = st.text_input("Reference Range", placeholder="13.8 - 17.2 g/dL")
+
+                if st.form_submit_button("Attach Parameter", type="primary"):
+                    payload = {
+                        "test_id": t_map[sel_test],
+                        "parameter_name": p_name,
+                        "unit": unit,
+                        "reference_range": ref_range
+                    }
+                    res = api_request("POST", "/diagnostics/parameters", json=payload)
+                    if res and res.status_code == 201:
+                        st.success(f"✅ Parameter added to {sel_test}!")
 
 
 def admin_documents_view():
     check_login()
-    page_header("Document Vault & Archive", "📁", "Central management of medical documents, scans, and verified reports")
+    page_header("Document Vault & Archive", "📁", "Central management of medical documents, categories, and tags")
 
-    doc_types = fetch_json("/documents/types", [])
-    st.subheader("Supported Document Types")
-    st.dataframe(pd.DataFrame(doc_types) if doc_types else pd.DataFrame([{"Notice": "No types"}]), use_container_width=True, hide_index=True)
+    tab_types, tab_tags = st.tabs(["🏷️ Document Types", "🔖 Metadata Tags"])
+
+    with tab_types:
+        doc_types = fetch_json("/documents/types", [])
+        st.subheader("Supported Document Categories")
+        st.dataframe(pd.DataFrame(doc_types) if doc_types else pd.DataFrame([{"Notice": "No types"}]), use_container_width=True, hide_index=True)
+
+        with st.form("add_doc_type_form"):
+            t_name = st.text_input("New Document Category Name", placeholder="e.g. Genetic Profile, Vaccination Card")
+            if st.form_submit_button("Add Category", type="primary"):
+                res = api_request("POST", "/documents/types", json={"name": t_name})
+                if res and res.status_code == 201:
+                    st.success("✅ Category added!")
+                    st.rerun()
+
+    with tab_tags:
+        tags = fetch_json("/documents/tags", [])
+        st.subheader("System Document Tags")
+        st.dataframe(pd.DataFrame(tags) if tags else pd.DataFrame([{"Notice": "No tags"}]), use_container_width=True, hide_index=True)
+
+        with st.form("add_tag_form"):
+            tag_name = st.text_input("New Tag", placeholder="e.g. Urgent, Second-Opinion, Confidential")
+            if st.form_submit_button("Create Tag", type="primary"):
+                res = api_request("POST", "/documents/tags", json={"name": tag_name})
+                if res and res.status_code == 201:
+                    st.success("✅ Tag created!")
+                    st.rerun()
 
 
 def admin_consent_view():
     check_login()
     page_header("Consent & Privacy Oversight", "🔏", "Monitor compliance, consent authorizations, and health record access permissions")
-    st.info("Patients maintain sovereign control over their records through the patient portal.")
+    st.info("Patients maintain sovereign control over their records through the patient portal. Active consent authorizations are logged and verified on each clinical encounter.")
 
 
 def admin_audit_view():
     check_login()
     page_header("Security Audit & Access Logs", "📜", "Enterprise access ledger, audit trail, and compliance tracing")
 
-    st.subheader("Live System Audit Stream")
-    logs = fetch_json("/logs/access/user/1", [])
-    if logs:
-        st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
-    else:
-        st.info("System access logs are clean and synchronized.")
+    tab_audit, tab_access, tab_notif, tab_queries = st.tabs([
+        "📜 Database Table Audit", "🔐 Access Logs", "🔔 Notifications", "⚡ Live MySQL Queries"
+    ])
+
+    with tab_audit:
+        sel_table = st.selectbox("Select Table Audit Trail", ["appointment", "patient_profile", "consent_record", "medical_document", "test_order"])
+        audits = fetch_json(f"/logs/audit/{sel_table}", [])
+        if audits:
+            st.dataframe(pd.DataFrame(audits), use_container_width=True, hide_index=True)
+        else:
+            st.info(f"No logged audit records for table '{sel_table}'.")
+
+    with tab_access:
+        users = fetch_json("/identity/users", [])
+        if users:
+            u_map = {f"{u['username']} ({u['full_name']})": u["user_id"] for u in users}
+            sel_u = st.selectbox("Inspect Access Logs for User", list(u_map.keys()))
+            logs = fetch_json(f"/logs/access/user/{u_map[sel_u]}", [])
+            if logs:
+                st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
+            else:
+                st.info("No recorded access logs for this user.")
+
+    with tab_notif:
+        notifs = fetch_json("/logs/notifications/1", [])
+        if notifs:
+            for n in notifs:
+                with st.expander(f"Notification #{n.get('notification_id')} (Read: {n.get('is_read')})"):
+                    st.write(n.get("message"))
+                    if not n.get("is_read"):
+                        if st.button("Mark as Read", key=f"notif_r_{n.get('notification_id')}"):
+                            api_request("PATCH", f"/logs/notifications/{n.get('notification_id')}/read")
+                            st.rerun()
+        else:
+            st.info("No notifications pending.")
+
+    with tab_queries:
+        st.subheader("⚡ Live MySQL Connections & Queries")
+        st.caption("Active threads, connection states, and executing SQL statements from MySQL Server.")
+        if st.button("🔄 Refresh Queries", key="ref_proc"):
+            st.rerun()
+
+        procs = fetch_json("/logs/db/processlist", [])
+        if procs:
+            st.dataframe(pd.DataFrame(procs), use_container_width=True, hide_index=True)
+        else:
+            st.info("No active queries currently running.")
 
 
 def admin_ai_assistant_view():
@@ -356,4 +520,3 @@ def admin_ai_assistant_view():
     if st.button("Generate AI Clinical Summary", type="primary"):
         if raw_text:
             st.markdown(generate_mock_summary(raw_text))
-

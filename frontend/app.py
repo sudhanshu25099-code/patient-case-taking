@@ -39,7 +39,7 @@ else:
 
     # Sidebar Header & User Profile
     with st.sidebar:
-        st.markdown(f"### 🏥 HealthPulse EHR")
+        st.markdown(f"### 🏥 Clinical EHR")
         st.markdown(f"**{user_info.get('full_name')}**")
         st.markdown(f"`@{user_info.get('username')}`")
         st.markdown(render_role_badge(primary_role), unsafe_allow_html=True)

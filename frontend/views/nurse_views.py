@@ -60,7 +60,7 @@ def nurse_station_view():
                     if st.button("🩺 Intake & Vitals", key=f"triage_{a.get('appointment_id')}", type="primary"):
                         st.session_state["nurse_active_appt"] = a.get("appointment_id")
                         st.session_state["nurse_active_pat_name"] = a.get("patient_name")
-                        st.info("Loaded into Patient Check-In & Pre-Visit! Open the **Check-In & Triage** tab.")
+                        st.info("Loaded into Patient Check-In & Pre-Visit! Open the **Check-In & Vitals** tab.")
 
 
 def nurse_checkin_view():
@@ -85,6 +85,13 @@ def nurse_checkin_view():
 
     sel_lbl = st.selectbox("Select Patient Appointment", list(appt_map.keys()), index=default_idx)
     sel_aid = appt_map[sel_lbl]
+
+    col_chk, _ = st.columns([1, 3])
+    with col_chk:
+        if st.button("✅ Mark Patient as Checked-In", type="primary"):
+            res_chk = api_request("POST", f"/appointments/{sel_aid}/check-in")
+            if res_chk and res_chk.status_code == 200:
+                st.success("Patient check-in recorded!")
 
     tab_vitals, tab_symptoms = st.tabs(["💓 Triage Vitals", "🤒 Presenting Symptoms"])
 
@@ -154,15 +161,31 @@ def nurse_care_view():
     sel_pat_lbl = st.selectbox("Select Patient", list(pat_map.keys()))
     pat_id = pat_map[sel_pat_lbl]
 
-    tab_al, tab_cond = st.tabs(["⚠️ Record Allergy", "🩺 Record Medical Condition"])
+    tab_al, tab_cond = st.tabs(["⚠️ Allergies & Alerts", "🩺 Conditions & Chronic Care"])
 
     with tab_al:
+        st.subheader("Existing Allergies")
+        allergies = fetch_json(f"/visits/patient/{pat_id}/allergies", [])
+        if allergies:
+            for al in allergies:
+                c1, c2 = st.columns([3, 1])
+                c1.write(f"**{al.get('allergen')}** ({al.get('allergy_type')}) — Reaction: {al.get('reaction')} | Status: {al.get('status')}")
+                if al.get("status") == "Active":
+                    if c2.button("Resolve", key=f"res_al_{al.get('allergy_id')}"):
+                        res_ra = api_request("PATCH", f"/visits/allergies/{al.get('allergy_id')}/resolve")
+                        if res_ra and res_ra.status_code == 200:
+                            st.success("Allergy marked as Resolved.")
+                            st.rerun()
+        else:
+            st.info("No allergies on record for this patient.")
+
+        st.markdown("---")
         with st.form("nurse_allergy_form"):
             st.subheader("Add Allergy Alert")
             allergen = st.text_input("Allergen", placeholder="e.g. Penicillin, Peanuts, Sulfa Drugs")
             c_type, c_sev = st.columns(2)
             a_type = c_type.selectbox("Allergy Type", ["Drug", "Food", "Environmental", "Other"])
-            severity = c_sev.selectbox("Reaction Severity", ["Mild", "Moderate", "Severe", "Life-threatening"])
+            severity = c_sev.selectbox("Reaction Severity", ["Mild", "Moderate", "Severe"])
             reaction = st.text_input("Reaction Description", placeholder="e.g. Urticaria, Anaphylaxis, Rash")
 
             if st.form_submit_button("Add Allergy to Chart", type="primary"):
@@ -177,26 +200,47 @@ def nurse_care_view():
                 res = api_request("POST", "/visits/allergies", json=payload)
                 if res and res.status_code == 201:
                     st.success("✅ Allergy added to patient chart!")
+                    st.rerun()
                 else:
                     st.error("Failed to record allergy.")
 
     with tab_cond:
+        st.subheader("Existing Conditions")
+        conds = fetch_json(f"/visits/patient/{pat_id}/conditions", [])
+        if conds:
+            for cd in conds:
+                c1, c2 = st.columns([3, 1])
+                c1.write(f"**{cd.get('condition_name')}** ({cd.get('condition_type')}) — Status: {cd.get('status')}")
+                if cd.get("status") != "Resolved":
+                    if c2.button("Mark Resolved", key=f"res_cd_{cd.get('condition_id')}"):
+                        res_rc = api_request("PATCH", f"/visits/conditions/{cd.get('condition_id')}/status", json={"status": "Resolved"})
+                        if res_rc and res_rc.status_code == 200:
+                            st.success("Condition marked as Resolved.")
+                            st.rerun()
+        else:
+            st.info("No chronic conditions registered.")
+
+        st.markdown("---")
         with st.form("nurse_condition_form"):
             st.subheader("Add Chronic / Active Condition")
             cond_name = st.text_input("Condition Name", placeholder="e.g. Type 2 Diabetes, Asthma, Hypertension")
-            status = st.selectbox("Status", ["Active", "Controlled", "Resolved"])
+            c_type_cd, c_st_cd = st.columns(2)
+            cd_type = c_type_cd.selectbox("Condition Type", ["Chronic", "Past illness", "Surgery", "Family history"])
+            status = c_st_cd.selectbox("Status", ["Active", "Controlled", "Resolved"])
             notes = st.text_area("Notes", placeholder="Diagnosed 2021, on oral hypoglycemics")
 
             if st.form_submit_button("Add Condition", type="primary"):
                 payload = {
                     "patient_id": pat_id,
                     "condition_name": cond_name,
+                    "condition_type": cd_type,
                     "status": status,
                     "notes": notes
                 }
                 res = api_request("POST", "/visits/conditions", json=payload)
                 if res and res.status_code == 201:
                     st.success("✅ Medical condition recorded!")
+                    st.rerun()
                 else:
                     st.error("Failed to record condition.")
 
@@ -204,10 +248,47 @@ def nurse_care_view():
 def nurse_labs_view():
     page_header("Lab Orders & Specimen Tracking", "🧪", "Monitor laboratory orders and specimen collection status")
 
-    tests = fetch_json("/diagnostics/tests", [])
-    st.write(f"Diagnostic laboratory catalog: **{len(tests)} test panels online**.")
-    df_tests = pd.DataFrame(tests)
-    st.dataframe(df_tests[["test_id", "test_name", "category", "description"]], use_container_width=True, hide_index=True)
+    tab_orders, tab_results, tab_catalog = st.tabs(["📋 Lab Orders Tracking", "🧪 Enter Test Results", "📖 Test Catalog"])
+
+    with tab_orders:
+        orders = fetch_json("/diagnostics/orders", [])
+        if orders:
+            for ord_item in orders:
+                with st.expander(f"Order #{ord_item.get('order_id')} (Status: {ord_item.get('status')})"):
+                    st.write(f"**Visit ID:** {ord_item.get('visit_id')} | **Doctor:** {ord_item.get('doctor_name') or 'Physician'}")
+                    st.write(f"**Clinical Indication:** {ord_item.get('clinical_note') or 'Routine'}")
+                    if ord_item.get("status") == "Ordered":
+                        if st.button("Mark Sample Collected / In Progress", key=f"coll_{ord_item.get('order_id')}"):
+                            res_up = api_request("PATCH", f"/diagnostics/orders/{ord_item.get('order_id')}/status", json={"status": "Completed"})
+                            if res_up and res_up.status_code == 200:
+                                st.success("Order status updated.")
+                                st.rerun()
+        else:
+            st.info("No active lab orders.")
+
+    with tab_results:
+        with st.form("enter_lab_result_form"):
+            st.subheader("Enter Diagnostic Test Finding")
+            oi_id = st.number_input("Order Item ID", min_value=1, step=1, value=1)
+            finding = st.text_area("Overall Finding / Summary", placeholder="Parameters within standard limits.")
+
+            if st.form_submit_button("Publish Finding", type="primary"):
+                payload = {
+                    "order_item_id": oi_id,
+                    "report_date": str(date.today()),
+                    "overall_finding": finding,
+                    "verification_status": "Pending",
+                    "items": []
+                }
+                res = api_request("POST", "/diagnostics/results", json=payload)
+                if res and res.status_code == 201:
+                    st.success("✅ Finding recorded and queued for physician verification!")
+                else:
+                    st.error("Failed to publish result.")
+
+    with tab_catalog:
+        tests = fetch_json("/diagnostics/tests", [])
+        st.dataframe(pd.DataFrame(tests), use_container_width=True, hide_index=True)
 
 
 def nurse_directory_view():
@@ -219,4 +300,3 @@ def nurse_directory_view():
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.info("No patients currently in directory.")
-
