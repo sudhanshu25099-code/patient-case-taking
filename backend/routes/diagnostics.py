@@ -5,9 +5,8 @@ from sqlalchemy import text
 from dependencies import get_db_connection
 from queries import diagnostic_queries as q
 from schemas.diagnostics import (
-    DiagnosticTestCreate, DiagnosticTestOut,
-    TestParameterCreate, TestParameterOut,
-    TestOrderCreate, TestOrderOut, TestOrderItemOut,
+    DiagnosticTestCreate, DiagnosticTestOut, TestParameterCreate,
+    TestParameterOut, TestOrderCreate, TestOrderOut, TestOrderItemOut,
     TestResultCreate, TestResultOut,
 )
 
@@ -36,6 +35,11 @@ def list_params(test_id: int, conn: Connection = Depends(get_db_connection)):
     return q.list_parameters(conn, test_id)
 
 
+@router.get("/orders")
+def list_all_orders(conn: Connection = Depends(get_db_connection)):
+    return [dict(o) for o in q.list_all_orders(conn)]
+
+
 @router.post("/orders", response_model=TestOrderOut, status_code=201)
 def create_order(p: TestOrderCreate, conn: Connection = Depends(get_db_connection)):
     data = p.model_dump(exclude={"test_ids"})
@@ -51,6 +55,11 @@ def order_items(order_id: int, conn: Connection = Depends(get_db_connection)):
     return q.list_order_items(conn, order_id)
 
 
+@router.get("/results")
+def list_all_results(conn: Connection = Depends(get_db_connection)):
+    return [dict(r) for r in q.list_results(conn)]
+
+
 @router.post("/results", response_model=TestResultOut, status_code=201)
 def create_result(p: TestResultCreate, conn: Connection = Depends(get_db_connection)):
     data = p.model_dump(exclude={"items"})
@@ -64,6 +73,7 @@ def create_result(p: TestResultCreate, conn: Connection = Depends(get_db_connect
 def change_order_status(order_id: int, status: str = Body(..., embed=True), conn: Connection = Depends(get_db_connection)):
     conn.execute(text("UPDATE test_order SET status = :s WHERE order_id = :id"), {"s": status, "id": order_id})
     return {"ok": True}
+
 
 @router.put("/results/{result_id}/verify")
 def verify_lab_result(result_id: int, verified_by: int, conn: Connection = Depends(get_db_connection)):

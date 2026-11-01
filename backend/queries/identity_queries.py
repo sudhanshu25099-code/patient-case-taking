@@ -152,3 +152,58 @@ def get_nurse(conn: Connection, nurse_id: int):
         SELECT nurse_id, person_id, department_id, employee_no, shift
         FROM nurse_profile WHERE nurse_id = :id
     """), {"id": nurse_id}).mappings().first()
+
+
+def update_password(conn: Connection, user_id: int, new_hash: str) -> int:
+    return conn.execute(
+        text("UPDATE user_account SET password_hash = :h WHERE user_id = :u"),
+        {"h": new_hash, "u": user_id}
+    ).rowcount
+
+
+def list_users(conn: Connection):
+    return conn.execute(text("""
+        SELECT u.user_id, u.person_id, u.username, u.email, u.is_active, u.last_login,
+               p.full_name,
+               GROUP_CONCAT(r.role_name SEPARATOR ', ') as roles
+        FROM user_account u
+        JOIN person p ON u.person_id = p.person_id
+        LEFT JOIN user_role ur ON u.user_id = ur.user_id
+        LEFT JOIN role r ON ur.role_id = r.role_id
+        GROUP BY u.user_id, u.person_id, u.username, u.email, u.is_active, u.last_login, p.full_name
+        ORDER BY u.user_id
+    """)).mappings().all()
+
+
+def list_doctors(conn: Connection):
+    return conn.execute(text("""
+        SELECT d.doctor_id, d.person_id, p.full_name, p.email, p.phone,
+               d.license_no, d.qualification, d.specialization,
+               d.experience_years, d.consultation_fee
+        FROM doctor_profile d
+        JOIN person p ON d.person_id = p.person_id
+        ORDER BY p.full_name
+    """)).mappings().all()
+
+
+def list_patients(conn: Connection):
+    return conn.execute(text("""
+        SELECT pt.patient_id, pt.person_id, p.full_name, p.date_of_birth,
+               p.gender, p.phone, p.email, pt.blood_group,
+               pt.emergency_contact_name, pt.emergency_contact_phone, pt.abha_linked
+        FROM patient_profile pt
+        JOIN person p ON pt.person_id = p.person_id
+        ORDER BY p.full_name
+    """)).mappings().all()
+
+
+def list_nurses(conn: Connection):
+    return conn.execute(text("""
+        SELECT n.nurse_id, n.person_id, p.full_name, p.email, p.phone,
+               n.department_id, n.employee_no, n.shift, d.name as department_name, h.name as hospital_name
+        FROM nurse_profile n
+        JOIN person p ON n.person_id = p.person_id
+        LEFT JOIN department d ON n.department_id = d.department_id
+        LEFT JOIN hospital h ON d.hospital_id = h.hospital_id
+        ORDER BY p.full_name
+    """)).mappings().all()

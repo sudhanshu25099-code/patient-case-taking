@@ -52,6 +52,11 @@ def delete_person(person_id: int, conn: Connection = Depends(get_db_connection))
 
 
 # ----- users -----
+@router.get("/users")
+def list_users(conn: Connection = Depends(get_db_connection)):
+    return [dict(u) for u in q.list_users(conn)]
+
+
 @router.post("/users", response_model=UserAccountOut, status_code=201)
 def create_user(p: UserAccountCreate, conn: Connection = Depends(get_db_connection)):
     d = p.model_dump()
@@ -81,6 +86,11 @@ def list_roles(conn: Connection = Depends(get_db_connection)):
 
 
 # ----- profiles -----
+@router.get("/patients")
+def list_patients(conn: Connection = Depends(get_db_connection)):
+    return [dict(p) for p in q.list_patients(conn)]
+
+
 @router.post("/patients", response_model=PatientProfileOut, status_code=201)
 def create_patient(p: PatientProfileCreate,
                    conn: Connection = Depends(get_db_connection)):
@@ -94,6 +104,11 @@ def get_patient(patient_id: int, conn: Connection = Depends(get_db_connection)):
     if not row:
         raise HTTPException(404, "Patient not found")
     return row
+
+
+@router.get("/doctors")
+def list_doctors(conn: Connection = Depends(get_db_connection)):
+    return [dict(d) for d in q.list_doctors(conn)]
 
 
 @router.post("/doctors", response_model=DoctorProfileOut, status_code=201)
@@ -111,30 +126,45 @@ def get_doctor(doctor_id: int, conn: Connection = Depends(get_db_connection)):
     return row
 
 
+@router.get("/nurses")
+def list_nurses(conn: Connection = Depends(get_db_connection)):
+    return [dict(n) for n in q.list_nurses(conn)]
+
+
 @router.post("/nurses", response_model=NurseProfileOut, status_code=201)
 def create_nurse(p: NurseProfileCreate,
                  conn: Connection = Depends(get_db_connection)):
     nid = q.create_nurse(conn, p.model_dump())
     return q.get_nurse(conn, nid)
 
+
+@router.get("/nurses/{nurse_id}")
+def get_nurse(nurse_id: int, conn: Connection = Depends(get_db_connection)):
+    row = q.get_nurse(conn, nurse_id)
+    if not row:
+        raise HTTPException(404, "Nurse not found")
+    return dict(row)
+
+
 @router.patch("/users/{user_id}/password")
 def change_password(
     user_id: int, 
     p: PasswordUpdate, 
     conn: Connection = Depends(get_db_connection),
-    current_user: dict = Depends(verify_user) # Protected by Basic Auth
+    current_user: dict = Depends(verify_user)
 ):
     new_hash = pwd.hash(p.new_password)
     if q.update_password(conn, user_id, new_hash) == 0:
         raise HTTPException(404, "User not found")
     return {"ok": True, "message": "Password updated successfully"}
 
+
 @router.post("/users/{user_id}/roles", status_code=201)
 def assign_role(
     user_id: int, 
     p: RoleAssignment, 
     conn: Connection = Depends(get_db_connection),
-    current_user: dict = Depends(verify_user) # Protected by Basic Auth
+    current_user: dict = Depends(verify_user)
 ):
     q.assign_role(conn, user_id, p.role_id)
     return {"ok": True, "message": "Role assigned"}

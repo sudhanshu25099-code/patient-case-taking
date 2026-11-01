@@ -19,10 +19,42 @@ def create_appointment(conn: Connection, d: dict) -> int:
 
 
 def get_appointment(conn: Connection, appointment_id: int):
-    return conn.execute(
-        text(f"SELECT {APPT_COLS} FROM appointment WHERE appointment_id = :id"),
-        {"id": appointment_id},
-    ).mappings().first()
+    return conn.execute(text("""
+        SELECT a.appointment_id, a.patient_id, a.hospital_id, a.doctor_id,
+               a.appointment_date, a.time_slot, a.reason, a.pre_visit_notes,
+               a.is_follow_up, a.status, a.notes, a.booked_by, a.created_at,
+               p_pat.full_name as patient_name,
+               p_doc.full_name as doctor_name,
+               d.specialization as doctor_specialization,
+               h.name as hospital_name
+        FROM appointment a
+        JOIN patient_profile pt ON a.patient_id = pt.patient_id
+        JOIN person p_pat ON pt.person_id = p_pat.person_id
+        JOIN doctor_profile d ON a.doctor_id = d.doctor_id
+        JOIN person p_doc ON d.person_id = p_doc.person_id
+        JOIN hospital h ON a.hospital_id = h.hospital_id
+        WHERE a.appointment_id = :id
+    """), {"id": appointment_id}).mappings().first()
+
+
+def list_all(conn: Connection):
+    return conn.execute(text("""
+        SELECT a.appointment_id, a.patient_id, a.hospital_id, a.doctor_id,
+               a.appointment_date, a.time_slot, a.reason, a.pre_visit_notes,
+               a.is_follow_up, a.status, a.notes, a.booked_by, a.created_at,
+               p_pat.full_name as patient_name,
+               p_pat.phone as patient_phone,
+               p_doc.full_name as doctor_name,
+               d.specialization as doctor_specialization,
+               h.name as hospital_name
+        FROM appointment a
+        JOIN patient_profile pt ON a.patient_id = pt.patient_id
+        JOIN person p_pat ON pt.person_id = p_pat.person_id
+        JOIN doctor_profile d ON a.doctor_id = d.doctor_id
+        JOIN person p_doc ON d.person_id = p_doc.person_id
+        JOIN hospital h ON a.hospital_id = h.hospital_id
+        ORDER BY a.appointment_date DESC, a.time_slot DESC
+    """)).mappings().all()
 
 
 def update_appointment(conn, id, d): 
@@ -31,22 +63,50 @@ def update_appointment(conn, id, d):
           reason=:reason, status=:status WHERE appointment_id=:id
     """), {**d, "id": id}).rowcount
 
+
 def check_in_appointment(conn, id): 
     return conn.execute(text("""
         UPDATE appointment SET status='Completed' WHERE appointment_id=:id
     """), {"id": id}).rowcount
 
+
 def list_by_patient(conn: Connection, patient_id: int):
-    return conn.execute(text(f"""
-        SELECT {APPT_COLS} FROM appointment
-        WHERE patient_id = :p ORDER BY appointment_date DESC, time_slot DESC
+    return conn.execute(text("""
+        SELECT a.appointment_id, a.patient_id, a.hospital_id, a.doctor_id,
+               a.appointment_date, a.time_slot, a.reason, a.pre_visit_notes,
+               a.is_follow_up, a.status, a.notes, a.booked_by, a.created_at,
+               p_pat.full_name as patient_name,
+               p_doc.full_name as doctor_name,
+               d.specialization as doctor_specialization,
+               h.name as hospital_name
+        FROM appointment a
+        JOIN patient_profile pt ON a.patient_id = pt.patient_id
+        JOIN person p_pat ON pt.person_id = p_pat.person_id
+        JOIN doctor_profile d ON a.doctor_id = d.doctor_id
+        JOIN person p_doc ON d.person_id = p_doc.person_id
+        JOIN hospital h ON a.hospital_id = h.hospital_id
+        WHERE a.patient_id = :p
+        ORDER BY a.appointment_date DESC, a.time_slot DESC
     """), {"p": patient_id}).mappings().all()
 
 
 def list_by_doctor(conn: Connection, doctor_id: int):
-    return conn.execute(text(f"""
-        SELECT {APPT_COLS} FROM appointment
-        WHERE doctor_id = :d ORDER BY appointment_date DESC, time_slot DESC
+    return conn.execute(text("""
+        SELECT a.appointment_id, a.patient_id, a.hospital_id, a.doctor_id,
+               a.appointment_date, a.time_slot, a.reason, a.pre_visit_notes,
+               a.is_follow_up, a.status, a.notes, a.booked_by, a.created_at,
+               p_pat.full_name as patient_name,
+               p_pat.phone as patient_phone,
+               p_doc.full_name as doctor_name,
+               h.name as hospital_name
+        FROM appointment a
+        JOIN patient_profile pt ON a.patient_id = pt.patient_id
+        JOIN person p_pat ON pt.person_id = p_pat.person_id
+        JOIN doctor_profile d ON a.doctor_id = d.doctor_id
+        JOIN person p_doc ON d.person_id = p_doc.person_id
+        JOIN hospital h ON a.hospital_id = h.hospital_id
+        WHERE a.doctor_id = :d
+        ORDER BY a.appointment_date DESC, a.time_slot DESC
     """), {"d": doctor_id}).mappings().all()
 
 

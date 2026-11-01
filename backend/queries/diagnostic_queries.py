@@ -97,3 +97,26 @@ def list_result_items(conn: Connection, result_id: int):
         FROM test_result_item WHERE result_id = :r
     """), {"r": result_id}).mappings().all()
 
+
+
+def list_all_orders(conn: Connection):
+    return conn.execute(text("""
+        SELECT o.order_id, o.visit_id, o.ordered_by, o.status, o.order_date, o.clinical_note,
+               p.full_name as doctor_name
+        FROM test_order o
+        LEFT JOIN doctor_profile d ON o.ordered_by = d.doctor_id
+        LEFT JOIN person p ON d.person_id = p.person_id
+        ORDER BY o.order_id DESC
+    """)).mappings().all()
+
+
+def list_results(conn: Connection):
+    return conn.execute(text("""
+        SELECT r.result_id, r.order_item_id, r.report_date, r.overall_finding,
+               r.verified_by, r.verification_status,
+               t.test_name
+        FROM test_result r
+        LEFT JOIN test_order_item oi ON r.order_item_id = oi.order_item_id
+        LEFT JOIN diagnostic_test t ON oi.test_id = t.test_id
+        ORDER BY r.result_id DESC
+    """)).mappings().all()

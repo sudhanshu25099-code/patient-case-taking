@@ -12,25 +12,30 @@ from schemas.appointments import (
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
 
+@router.get("")
+def list_appointments(conn: Connection = Depends(get_db_connection)):
+    return [dict(a) for a in q.list_all(conn)]
+
+
 @router.post("", response_model=AppointmentOut, status_code=201)
 def create(p: AppointmentCreate, conn: Connection = Depends(get_db_connection)):
     aid = q.create_appointment(conn, p.model_dump())
     return q.get_appointment(conn, aid)
 
 
-@router.get("/{appointment_id}", response_model=AppointmentDetail)
+@router.get("/{appointment_id}")
 def get_one(appointment_id: int, conn: Connection = Depends(get_db_connection)):
     row = q.get_appointment(conn, appointment_id)
     if not row:
         raise HTTPException(404, "Appointment not found")
     return {
         **dict(row),
-        "symptoms": q.list_symptoms(conn, appointment_id),
-        "notes": q.list_notes(conn, appointment_id),
+        "symptoms": [dict(s) for s in q.list_symptoms(conn, appointment_id)],
+        "notes": [dict(n) for n in q.list_notes(conn, appointment_id)],
     }
 
 
-@router.put("/{appointment_id}", response_model=AppointmentOut)
+@router.put("/{appointment_id}")
 def reschedule(appointment_id: int, p: AppointmentCreate, conn: Connection = Depends(get_db_connection)):
     if q.update_appointment(conn, appointment_id, p.model_dump()) == 0:
         raise HTTPException(404, "Appointment not found")
@@ -44,17 +49,17 @@ def check_in(appointment_id: int, conn: Connection = Depends(get_db_connection))
     return {"ok": True}
 
 
-@router.get("/patient/{patient_id}", response_model=list[AppointmentOut])
+@router.get("/patient/{patient_id}")
 def by_patient(patient_id: int, conn: Connection = Depends(get_db_connection)):
-    return q.list_by_patient(conn, patient_id)
+    return [dict(a) for a in q.list_by_patient(conn, patient_id)]
 
 
-@router.get("/doctor/{doctor_id}", response_model=list[AppointmentOut])
+@router.get("/doctor/{doctor_id}")
 def by_doctor(doctor_id: int, conn: Connection = Depends(get_db_connection)):
-    return q.list_by_doctor(conn, doctor_id)
+    return [dict(a) for a in q.list_by_doctor(conn, doctor_id)]
 
 
-@router.patch("/{appointment_id}/status", response_model=AppointmentOut)
+@router.patch("/{appointment_id}/status")
 def set_status(appointment_id: int, p: AppointmentStatusUpdate,
                conn: Connection = Depends(get_db_connection)):
     q.update_status(conn, appointment_id, p.status)
