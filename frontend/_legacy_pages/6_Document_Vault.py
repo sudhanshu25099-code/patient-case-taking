@@ -2,10 +2,10 @@ import streamlit as st
 from utils.api_client import api_request
 from utils.ui_helpers import apply_theme, page_header, check_login
 
-st.set_page_config(page_title="Documents", page_icon="📄")
+st.set_page_config(page_title="Documents", page_icon=":material/description:")
 apply_theme()
 check_login()
-page_header("Document Vault", "📄", "Upload and manage medical records.")
+page_header("Document Vault", ":material/description:", "Upload and manage medical records.")
 
 tab1, tab2 = st.tabs(["Upload Document", "View Patient Documents"])
 

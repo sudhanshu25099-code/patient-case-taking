@@ -23,7 +23,7 @@ def _get_nurse_context():
 
 def nurse_station_view():
     nurse_id, user_info, nurse = _get_nurse_context()
-    page_header(f"Nurse Station • {user_info.get('full_name')}", "👩‍⚕️", f"Shift: {nurse.get('shift', 'Day Shift')} | Employee ID: {nurse.get('employee_no', 'N/A')} | Department: {nurse.get('department_name', 'General Clinic')}")
+    page_header(f"Nurse Station • {user_info.get('full_name')}", ":material/medical_services:", f"Shift: {nurse.get('shift', 'Day Shift')} | Employee ID: {nurse.get('employee_no', 'N/A')} | Department: {nurse.get('department_name', 'General Clinic')}")
 
     appts = fetch_json("/appointments", [])
     scheduled = [a for a in appts if a.get("status") == "Scheduled"]
@@ -31,22 +31,22 @@ def nurse_station_view():
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_kpi_card("Clinic Queue", len(scheduled), "Awaiting Check-in / Doctor", "⏳")
+        render_kpi_card("Clinic Queue", len(scheduled), "Awaiting Check-in / Doctor", ":material/hourglass_top:")
     with c2:
-        render_kpi_card("Completed Visits", len(completed), "Concluded Today", "✅")
+        render_kpi_card("Completed Visits", len(completed), "Concluded Today", ":material/check_circle:")
     with c3:
-        render_kpi_card("Total Bookings", len(appts), "Today's Clinic Master", "📅")
+        render_kpi_card("Total Bookings", len(appts), "Today's Clinic Master", ":material/calendar_month:")
     with c4:
-        render_kpi_card("Assigned Shift", nurse.get("shift", "Day"), "On Duty", "⏱️")
+        render_kpi_card("Assigned Shift", nurse.get("shift", "Day"), "On Duty", ":material/timer:")
 
     st.markdown("---")
-    st.subheader("📋 Arriving Patient Queue & Triage Desk")
+    st.subheader(":material/assignment: Arriving Patient Queue & Triage Desk")
 
     if not scheduled:
         st.success("All scheduled patients have been checked in or completed!")
     else:
         for a in scheduled:
-            with st.expander(f"🔵 Appt #{a.get('appointment_id')}: {a.get('patient_name')} ({str(a.get('time_slot'))[:5]}) — Dr. {a.get('doctor_name')}", expanded=True):
+            with st.expander(f":material/radio_button_checked: Appt #{a.get('appointment_id')}: {a.get('patient_name')} ({str(a.get('time_slot'))[:5]}) — Dr. {a.get('doctor_name')}", expanded=True):
                 c1, c2, c3 = st.columns(3)
                 c1.write(f"**Patient:** {a.get('patient_name')}")
                 c1.write(f"**Phone:** {a.get('patient_phone') or 'N/A'}")
@@ -57,7 +57,7 @@ def nurse_station_view():
 
                 col_btn, _ = st.columns([1, 4])
                 with col_btn:
-                    if st.button("🩺 Intake & Vitals", key=f"triage_{a.get('appointment_id')}", type="primary"):
+                    if st.button(":material/stethoscope: Intake & Vitals", key=f"triage_{a.get('appointment_id')}", type="primary"):
                         st.session_state["nurse_active_appt"] = a.get("appointment_id")
                         st.session_state["nurse_active_pat_name"] = a.get("patient_name")
                         st.info("Loaded into Patient Check-In & Pre-Visit! Open the **Check-In & Vitals** tab.")
@@ -65,7 +65,7 @@ def nurse_station_view():
 
 def nurse_checkin_view():
     nurse_id, user_info, _ = _get_nurse_context()
-    page_header("Patient Check-In & Pre-Visit Intake", "⏱️", "Record incoming vitals, presenting symptoms, and triage notes")
+    page_header("Patient Check-In & Pre-Visit Intake", ":material/timer:", "Record incoming vitals, presenting symptoms, and triage notes")
 
     active_aid = st.session_state.get("nurse_active_appt")
     appts = fetch_json("/appointments", [])
@@ -88,12 +88,12 @@ def nurse_checkin_view():
 
     col_chk, _ = st.columns([1, 3])
     with col_chk:
-        if st.button("✅ Mark Patient as Checked-In", type="primary"):
+        if st.button(":material/check_circle: Mark Patient as Checked-In", type="primary"):
             res_chk = api_request("POST", f"/appointments/{sel_aid}/check-in")
             if res_chk and res_chk.status_code == 200:
                 st.success("Patient check-in recorded!")
 
-    tab_vitals, tab_symptoms = st.tabs(["💓 Triage Vitals", "🤒 Presenting Symptoms"])
+    tab_vitals, tab_symptoms = st.tabs([":material/cardiology: Triage Vitals", ":material/sick: Presenting Symptoms"])
 
     with tab_vitals:
         st.subheader("Record Vital Signs")
@@ -119,7 +119,7 @@ def nurse_checkin_view():
                 }
                 res = api_request("POST", "/appointments/notes", json=payload)
                 if res and res.status_code == 201:
-                    st.success("✅ Vitals successfully recorded in pre-visit snapshot!")
+                    st.success(":material/check_circle: Vitals successfully recorded in pre-visit snapshot!")
                 else:
                     st.error("Failed to save vitals.")
 
@@ -144,13 +144,13 @@ def nurse_checkin_view():
                 }
                 res = api_request("POST", "/appointments/symptoms", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Symptom '{sym_name}' attached to appointment pre-visit file!")
+                    st.success(f":material/check_circle: Symptom '{sym_name}' attached to appointment pre-visit file!")
                 else:
                     st.error("Failed to attach symptom.")
 
 
 def nurse_care_view():
-    page_header("Patient Allergies & Chronic Conditions", "💊", "Record known drug/food allergies and update medical conditions")
+    page_header("Patient Allergies & Chronic Conditions", ":material/medication:", "Record known drug/food allergies and update medical conditions")
 
     patients = fetch_json("/identity/patients", [])
     if not patients:
@@ -161,7 +161,7 @@ def nurse_care_view():
     sel_pat_lbl = st.selectbox("Select Patient", list(pat_map.keys()))
     pat_id = pat_map[sel_pat_lbl]
 
-    tab_al, tab_cond = st.tabs(["⚠️ Allergies & Alerts", "🩺 Conditions & Chronic Care"])
+    tab_al, tab_cond = st.tabs([":material/warning: Allergies & Alerts", ":material/stethoscope: Conditions & Chronic Care"])
 
     with tab_al:
         st.subheader("Existing Allergies")
@@ -199,7 +199,7 @@ def nurse_care_view():
                 }
                 res = api_request("POST", "/visits/allergies", json=payload)
                 if res and res.status_code == 201:
-                    st.success("✅ Allergy added to patient chart!")
+                    st.success(":material/check_circle: Allergy added to patient chart!")
                     st.rerun()
                 else:
                     st.error("Failed to record allergy.")
@@ -239,16 +239,16 @@ def nurse_care_view():
                 }
                 res = api_request("POST", "/visits/conditions", json=payload)
                 if res and res.status_code == 201:
-                    st.success("✅ Medical condition recorded!")
+                    st.success(":material/check_circle: Medical condition recorded!")
                     st.rerun()
                 else:
                     st.error("Failed to record condition.")
 
 
 def nurse_labs_view():
-    page_header("Lab Orders & Specimen Tracking", "🧪", "Monitor laboratory orders and specimen collection status")
+    page_header("Lab Orders & Specimen Tracking", ":material/experiment:", "Monitor laboratory orders and specimen collection status")
 
-    tab_orders, tab_results, tab_catalog = st.tabs(["📋 Lab Orders Tracking", "🧪 Enter Test Results", "📖 Test Catalog"])
+    tab_orders, tab_results, tab_catalog = st.tabs([":material/assignment: Lab Orders Tracking", ":material/experiment: Enter Test Results", ":material/menu_book: Test Catalog"])
 
     with tab_orders:
         orders = fetch_json("/diagnostics/orders", [])
@@ -282,7 +282,7 @@ def nurse_labs_view():
                 }
                 res = api_request("POST", "/diagnostics/results", json=payload)
                 if res and res.status_code == 201:
-                    st.success("✅ Finding recorded and queued for physician verification!")
+                    st.success(":material/check_circle: Finding recorded and queued for physician verification!")
                 else:
                     st.error("Failed to publish result.")
 
@@ -292,7 +292,7 @@ def nurse_labs_view():
 
 
 def nurse_directory_view():
-    page_header("Patient Directory & Emergency Contacts", "📇", "Fast lookup of registered patients, blood groups, and emergency info")
+    page_header("Patient Directory & Emergency Contacts", ":material/contacts:", "Fast lookup of registered patients, blood groups, and emergency info")
 
     patients = fetch_json("/identity/patients", [])
     if patients:

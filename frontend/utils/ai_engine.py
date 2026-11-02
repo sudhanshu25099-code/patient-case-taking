@@ -12,7 +12,7 @@ def generate_mock_summary(text: str) -> str:
     symptoms = re.findall(r'(pain|cough|fever|nausea|dizziness|fatigue)', text, re.IGNORECASE)
     unique_symptoms = list(set([s.lower() for s in symptoms]))
     
-    summary = "### 🧠 AI Clinical Analysis\n"
+    summary = "### :material/neurology: AI Clinical Analysis\n"
     summary += f"**Analyzed Text Length:** {len(text)} characters\n\n"
     
     if unique_symptoms:

@@ -8,7 +8,7 @@ from utils.ai_engine import generate_mock_summary
 
 def admin_overview_view():
     check_login()
-    page_header("Executive Command Center", "📊", "Enterprise Healthcare Network Overview • FastAPI + MySQL")
+    page_header("Executive Command Center", ":material/monitoring:", "Enterprise Healthcare Network Overview • FastAPI + MySQL")
 
     patients = fetch_json("/identity/patients", [])
     doctors = fetch_json("/identity/doctors", [])
@@ -19,36 +19,36 @@ def admin_overview_view():
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1:
-        render_kpi_card("Patients", len(patients), "Registered in EHR", "👥")
+        render_kpi_card("Patients", len(patients), "Registered in EHR", ":material/groups:")
     with c2:
-        render_kpi_card("Doctors", len(doctors), "Consulting Staff", "👨‍⚕️")
+        render_kpi_card("Doctors", len(doctors), "Consulting Staff", ":material/stethoscope:")
     with c3:
-        render_kpi_card("Nurses", len(nurses), "Nursing Station", "👩‍⚕️")
+        render_kpi_card("Nurses", len(nurses), "Nursing Station", ":material/medical_services:")
     with c4:
-        render_kpi_card("Hospitals", len(hospitals), "Network Facilities", "🏥")
+        render_kpi_card("Hospitals", len(hospitals), "Network Facilities", ":material/local_hospital:")
     with c5:
-        render_kpi_card("Appointments", len(appointments), "Scheduled & Active", "📅")
+        render_kpi_card("Appointments", len(appointments), "Scheduled & Active", ":material/calendar_month:")
     with c6:
-        render_kpi_card("Lab Catalog", len(tests), "Standard Panels", "🧪")
+        render_kpi_card("Lab Catalog", len(tests), "Standard Panels", ":material/experiment:")
 
     st.markdown("---")
-    st.subheader("🏥 Network Facilities")
+    st.subheader(":material/local_hospital: Network Facilities")
     if hospitals:
         st.dataframe(pd.DataFrame(hospitals), use_container_width=True, hide_index=True)
     else:
         st.info("No facilities found.")
 
-    st.subheader("📅 Recent Appointments")
+    st.subheader(":material/calendar_month: Recent Appointments")
     if appointments:
         st.dataframe(pd.DataFrame(appointments).head(10), use_container_width=True, hide_index=True)
 
 
 def admin_hospitals_view():
     check_login()
-    page_header("Hospital & Facility Administration", "🏥", "Manage network hospitals, clinical departments, and doctor affiliations")
+    page_header("Hospital & Facility Administration", ":material/local_hospital:", "Manage network hospitals, clinical departments, and doctor affiliations")
 
     tab_view, tab_add_hosp, tab_add_dept, tab_link_doc = st.tabs([
-        "🏢 Hospital Facilities", "➕ Add Hospital", "🏬 Add Department", "🔗 Doctor Affiliations"
+        ":material/business: Hospital Facilities", ":material/add_circle: Add Hospital", ":material/domain_add: Add Department", ":material/link: Doctor Affiliations"
     ])
 
     hospitals = fetch_json("/hospitals", [])
@@ -92,7 +92,7 @@ def admin_hospitals_view():
                 }
                 res = api_request("POST", "/hospitals", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Hospital registered! ID: #{res.json().get('hospital_id')}")
+                    st.success(f":material/check_circle: Hospital registered! ID: #{res.json().get('hospital_id')}")
                     st.rerun()
                 else:
                     detail = res.json().get("detail") if res else "Connection failed"
@@ -107,7 +107,7 @@ def admin_hospitals_view():
             current_depts = fetch_json(f"/hospitals/{sel_hid}/departments", [])
             if current_depts:
                 dept_names = [d["name"] for d in current_depts]
-                st.info(f"📋 **Existing departments in {sel_h}:** " + ", ".join([f"`{n}`" for n in dept_names]))
+                st.info(f":material/assignment: **Existing departments in {sel_h}:** " + ", ".join([f"`{n}`" for n in dept_names]))
         else:
             sel_hid = st.number_input("Hospital ID", min_value=1, value=1)
 
@@ -122,7 +122,7 @@ def admin_hospitals_view():
                     payload = {"name": dept_name.strip(), "description": desc}
                     res = api_request("POST", f"/hospitals/{sel_hid}/departments", json=payload)
                     if res and res.status_code == 201:
-                        st.success(f"✅ Department created! ID: #{res.json().get('department_id')}")
+                        st.success(f":material/check_circle: Department created! ID: #{res.json().get('department_id')}")
                         st.rerun()
                     else:
                         detail = res.json().get("detail") if res else "Connection error"
@@ -161,7 +161,7 @@ def admin_hospitals_view():
                 }
                 res = api_request("POST", f"/hospitals/{sel_hid}/doctors/{sel_did}", json=payload)
                 if res and res.status_code in [200, 201]:
-                    st.success("✅ Doctor affiliation recorded/updated successfully!")
+                    st.success(":material/check_circle: Doctor affiliation recorded/updated successfully!")
                     st.rerun()
                 else:
                     detail = res.json().get("detail") if res else "Connection error"
@@ -170,10 +170,10 @@ def admin_hospitals_view():
 
 def admin_users_view():
     check_login()
-    page_header("User & Identity Management", "👥", "Manage persons, user accounts, role assignments, passwords, and staff profiles")
+    page_header("User & Identity Management", ":material/groups:", "Manage persons, user accounts, role assignments, passwords, and staff profiles")
 
     tab_users, tab_person, tab_user, tab_role, tab_pass, tab_prof = st.tabs([
-        "📋 User Directory", "➕ Register Person", "🔑 Create User Account", "🛡️ Assign Role", "🔒 Reset Password", "🏥 Create Staff Profile"
+        ":material/assignment: User Directory", ":material/add_circle: Register Person", ":material/key: Create User Account", ":material/verified_user: Assign Role", ":material/lock: Reset Password", ":material/local_hospital: Create Staff Profile"
     ])
 
     with tab_users:
@@ -207,7 +207,7 @@ def admin_users_view():
                 }
                 res = api_request("POST", "/identity/persons", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Person created with ID: #{res.json().get('person_id')}")
+                    st.success(f":material/check_circle: Person created with ID: #{res.json().get('person_id')}")
                     st.rerun()
                 else:
                     st.error("Failed to create person.")
@@ -238,7 +238,7 @@ def admin_users_view():
                 }
                 res = api_request("POST", "/identity/users", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ User account created! User ID: #{res.json().get('user_id')}")
+                    st.success(f":material/check_circle: User account created! User ID: #{res.json().get('user_id')}")
                     st.rerun()
                 else:
                     st.error(f"Failed to create user: {res.text if res else 'Unknown error'}")
@@ -259,7 +259,7 @@ def admin_users_view():
                     payload = {"role_id": r_map[sel_r]}
                     res = api_request("POST", f"/identity/users/{u_map[sel_u]}/roles", json=payload)
                     if res and res.status_code in [200, 201]:
-                        st.success(f"✅ Role '{sel_r}' successfully assigned!")
+                        st.success(f":material/check_circle: Role '{sel_r}' successfully assigned!")
                         st.rerun()
                     else:
                         st.error("Failed to assign role.")
@@ -279,7 +279,7 @@ def admin_users_view():
                     uid = u_map[sel_user]
                     res_p = api_request("PATCH", f"/identity/users/{uid}/password", json={"new_password": new_pass})
                     if res_p and res_p.status_code == 200:
-                        st.success("✅ Password updated successfully!")
+                        st.success(":material/check_circle: Password updated successfully!")
                     else:
                         st.error("Failed to update password.")
 
@@ -306,7 +306,7 @@ def admin_users_view():
                         }
                         res = api_request("POST", "/identity/doctors", json=payload)
                         if res and res.status_code == 201:
-                            st.success(f"✅ Doctor profile created! Doctor ID: #{res.json().get('doctor_id')}")
+                            st.success(f":material/check_circle: Doctor profile created! Doctor ID: #{res.json().get('doctor_id')}")
 
         elif profile_type == "Nurse Profile":
             with st.form("create_nurse_prof"):
@@ -319,7 +319,7 @@ def admin_users_view():
                         payload = {"person_id": p_map[sel_p], "employee_no": emp_no, "shift": shift}
                         res = api_request("POST", "/identity/nurses", json=payload)
                         if res and res.status_code == 201:
-                            st.success(f"✅ Nurse profile created! Nurse ID: #{res.json().get('nurse_id')}")
+                            st.success(f":material/check_circle: Nurse profile created! Nurse ID: #{res.json().get('nurse_id')}")
 
         else:
             with st.form("create_pat_prof"):
@@ -337,12 +337,12 @@ def admin_users_view():
                         }
                         res = api_request("POST", "/identity/patients", json=payload)
                         if res and res.status_code == 201:
-                            st.success(f"✅ Patient profile created! Patient ID: #{res.json().get('patient_id')}")
+                            st.success(f":material/check_circle: Patient profile created! Patient ID: #{res.json().get('patient_id')}")
 
 
 def admin_appointments_view():
     check_login()
-    page_header("Master Appointments Management", "📅", "Central scheduling ledger across all hospital facilities and consulting physicians")
+    page_header("Master Appointments Management", ":material/calendar_month:", "Central scheduling ledger across all hospital facilities and consulting physicians")
 
     appts = fetch_json("/appointments", [])
     if appts:
@@ -353,7 +353,7 @@ def admin_appointments_view():
 
 def admin_clinical_view():
     check_login()
-    page_header("Clinical Records & EMR Vault", "🩺", "Network-wide clinical oversight and patient case summaries")
+    page_header("Clinical Records & EMR Vault", ":material/stethoscope:", "Network-wide clinical oversight and patient case summaries")
 
     patients = fetch_json("/identity/patients", [])
     if patients:
@@ -375,9 +375,9 @@ def admin_clinical_view():
 
 def admin_diagnostics_view():
     check_login()
-    page_header("Diagnostics & Lab Catalog Master", "🔬", "Manage diagnostic test catalog, standard reference panels, and parameters")
+    page_header("Diagnostics & Lab Catalog Master", ":material/labs:", "Manage diagnostic test catalog, standard reference panels, and parameters")
 
-    tab_cat, tab_add_t, tab_add_p = st.tabs(["📋 Test Catalog", "➕ Add Test", "🧪 Add Parameter"])
+    tab_cat, tab_add_t, tab_add_p = st.tabs([":material/assignment: Test Catalog", ":material/add_circle: Add Test", ":material/experiment: Add Parameter"])
 
     with tab_cat:
         tests = fetch_json("/diagnostics/tests", [])
@@ -394,7 +394,7 @@ def admin_diagnostics_view():
                 payload = {"test_name": t_name, "category": cat, "description": desc}
                 res = api_request("POST", "/diagnostics/tests", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Diagnostic test added! Test ID: #{res.json().get('test_id')}")
+                    st.success(f":material/check_circle: Diagnostic test added! Test ID: #{res.json().get('test_id')}")
                     st.rerun()
 
     with tab_add_p:
@@ -417,14 +417,14 @@ def admin_diagnostics_view():
                     }
                     res = api_request("POST", "/diagnostics/parameters", json=payload)
                     if res and res.status_code == 201:
-                        st.success(f"✅ Parameter added to {sel_test}!")
+                        st.success(f":material/check_circle: Parameter added to {sel_test}!")
 
 
 def admin_documents_view():
     check_login()
-    page_header("Document Vault & Archive", "📁", "Central management of medical documents, categories, and tags")
+    page_header("Document Vault & Archive", ":material/folder:", "Central management of medical documents, categories, and tags")
 
-    tab_types, tab_tags = st.tabs(["🏷️ Document Types", "🔖 Metadata Tags"])
+    tab_types, tab_tags = st.tabs([":material/label: Document Types", ":material/bookmark: Metadata Tags"])
 
     with tab_types:
         doc_types = fetch_json("/documents/types", [])
@@ -436,7 +436,7 @@ def admin_documents_view():
             if st.form_submit_button("Add Category", type="primary"):
                 res = api_request("POST", "/documents/types", json={"name": t_name})
                 if res and res.status_code == 201:
-                    st.success("✅ Category added!")
+                    st.success(":material/check_circle: Category added!")
                     st.rerun()
 
     with tab_tags:
@@ -449,22 +449,22 @@ def admin_documents_view():
             if st.form_submit_button("Create Tag", type="primary"):
                 res = api_request("POST", "/documents/tags", json={"name": tag_name})
                 if res and res.status_code == 201:
-                    st.success("✅ Tag created!")
+                    st.success(":material/check_circle: Tag created!")
                     st.rerun()
 
 
 def admin_consent_view():
     check_login()
-    page_header("Consent & Privacy Oversight", "🔏", "Monitor compliance, consent authorizations, and health record access permissions")
+    page_header("Consent & Privacy Oversight", ":material/policy:", "Monitor compliance, consent authorizations, and health record access permissions")
     st.info("Patients maintain sovereign control over their records through the patient portal. Active consent authorizations are logged and verified on each clinical encounter.")
 
 
 def admin_audit_view():
     check_login()
-    page_header("Security Audit & Access Logs", "📜", "Enterprise access ledger, audit trail, and compliance tracing")
+    page_header("Security Audit & Access Logs", ":material/receipt_long:", "Enterprise access ledger, audit trail, and compliance tracing")
 
     tab_audit, tab_access, tab_notif, tab_queries = st.tabs([
-        "📜 Database Table Audit", "🔐 Access Logs", "🔔 Notifications", "⚡ Live MySQL Queries"
+        ":material/receipt_long: Database Table Audit", ":material/admin_panel_settings: Access Logs", ":material/notifications: Notifications", ":material/bolt: Live MySQL Queries"
     ])
 
     with tab_audit:
@@ -500,9 +500,9 @@ def admin_audit_view():
             st.info("No notifications pending.")
 
     with tab_queries:
-        st.subheader("⚡ Live MySQL Connections & Queries")
+        st.subheader(":material/bolt: Live MySQL Connections & Queries")
         st.caption("Active threads, connection states, and executing SQL statements from MySQL Server.")
-        if st.button("🔄 Refresh Queries", key="ref_proc"):
+        if st.button(":material/refresh: Refresh Queries", key="ref_proc"):
             st.rerun()
 
         procs = fetch_json("/logs/db/processlist", [])
@@ -514,7 +514,7 @@ def admin_audit_view():
 
 def admin_ai_assistant_view():
     check_login()
-    page_header("AI Clinical Assistant", "🧠", "Clinical NLP note summarization, symptom extraction, and decision support")
+    page_header("AI Clinical Assistant", ":material/neurology:", "Clinical NLP note summarization, symptom extraction, and decision support")
 
     raw_text = st.text_area("Clinical Input Notes", height=180, placeholder="Paste clinical text to analyze...")
     if st.button("Generate AI Clinical Summary", type="primary"):

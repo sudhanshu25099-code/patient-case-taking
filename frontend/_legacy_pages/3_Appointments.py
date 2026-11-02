@@ -4,10 +4,10 @@ from datetime import date, time
 from utils.api_client import api_request
 from utils.ui_helpers import apply_theme, page_header, check_login
 
-st.set_page_config(page_title="Appointments", page_icon="📅")
+st.set_page_config(page_title="Appointments", page_icon=":material/calendar_month:")
 apply_theme()
 check_login()
-page_header("Appointment Management", "📅", "Schedule and track patient visits.")
+page_header("Appointment Management", ":material/calendar_month:", "Schedule and track patient visits.")
 
 tab1, tab2 = st.tabs(["Search Appointments", "Book Appointment"])
 
@@ -48,4 +48,4 @@ with tab2:
             }
             res = api_request("POST", "/appointments", json=payload)
             if res.status_code == 201:
-                st.success(f"✅ Booked! ID: {res.json()['appointment_id']}")
+                st.success(f":material/check_circle: Booked! ID: {res.json()['appointment_id']}")

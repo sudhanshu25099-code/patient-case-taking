@@ -2,10 +2,10 @@ import streamlit as st
 from utils.api_client import api_request
 from utils.ui_helpers import apply_theme, page_header, check_login
 
-st.set_page_config(page_title="Diagnostics", page_icon="🔬")
+st.set_page_config(page_title="Diagnostics", page_icon=":material/labs:")
 apply_theme()
 check_login()
-page_header("Lab & Diagnostics", "🔬", "Order tests and view results.")
+page_header("Lab & Diagnostics", ":material/labs:", "Order tests and view results.")
 
 tab1, tab2 = st.tabs(["View Orders", "Create Order"])
 
@@ -29,4 +29,4 @@ with tab2:
             payload = {"visit_id": visit_id, "ordered_by": doctor_id, "test_ids": ids, "status": "Ordered"}
             res = api_request("POST", "/diagnostics/orders", json=payload)
             if res.status_code == 201:
-                st.success(f"✅ Tests ordered! Order ID: {res.json()['order_id']}")
+                st.success(f":material/check_circle: Tests ordered! Order ID: {res.json()['order_id']}")

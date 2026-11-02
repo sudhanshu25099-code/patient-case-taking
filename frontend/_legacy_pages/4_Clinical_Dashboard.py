@@ -2,10 +2,10 @@ import streamlit as st
 from utils.api_client import api_request
 from utils.ui_helpers import apply_theme, page_header, check_login
 
-st.set_page_config(page_title="Clinical Dashboard", page_icon="🩺")
+st.set_page_config(page_title="Clinical Dashboard", page_icon=":material/stethoscope:")
 apply_theme()
 check_login()
-page_header("Clinical Dashboard", "🩺", "Pre-visit snapshots and clinical notes.")
+page_header("Clinical Dashboard", ":material/stethoscope:", "Pre-visit snapshots and clinical notes.")
 
 appt_id = st.number_input("Enter Appointment ID", min_value=1, step=1)
 

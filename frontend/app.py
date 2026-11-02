@@ -23,7 +23,7 @@ from views.admin_views import (
 
 st.set_page_config(
     page_title="Clinical EHR",
-    page_icon="🏥",
+    page_icon=":material/local_hospital:",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -39,17 +39,28 @@ else:
 
     # Sidebar Header & User Profile
     with st.sidebar:
-        st.markdown(f"### 🏥 Clinical EHR")
-        st.markdown(f"**{user_info.get('full_name')}**")
-        st.markdown(f"`@{user_info.get('username')}`")
-        st.markdown(render_role_badge(primary_role), unsafe_allow_html=True)
-        st.markdown("---")
+        st.markdown("""
+            <div class="hp-sidebar-brand">
+                <div class="hp-brand-mark">+</div>
+                <div>
+                    <div class="hp-brand-name">Clinical EHR</div>
+                    <div class="hp-brand-sub">Connected care workspace</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class="hp-user-panel">
+                <div class="hp-user-name">{user_info.get('full_name')}</div>
+                <div class="hp-user-handle">@{user_info.get('username')}</div>
+                {render_role_badge(primary_role)}
+            </div>
+        """, unsafe_allow_html=True)
 
         active_role = primary_role
 
         # Admin View Switcher (Allows admin to view the portal from any role perspective)
         if primary_role == "Admin":
-            st.markdown("👑 **Admin Perspective Control**")
+            st.markdown(":material/admin_panel_settings: **Admin Perspective Control**")
             simulated = st.selectbox(
                 "Active Viewing Mode",
                 ["Admin (Whole Access)", "Doctor View", "Nurse View", "Patient View"],
@@ -66,7 +77,7 @@ else:
                 active_role = "Admin"
             st.markdown("---")
 
-        if st.button("🚪 Sign Out", use_container_width=True, type="secondary"):
+        if st.button(":material/logout: Sign Out", use_container_width=True, type="secondary"):
             st.session_state.clear()
             st.rerun()
 
@@ -74,51 +85,51 @@ else:
     if active_role == "Doctor":
         pages = {
             "Doctor Portal": [
-                st.Page(doctor_station_view, title="Doctor Station & Queue", icon="🩺", default=True),
-                st.Page(doctor_case_taking_view, title="Clinical Case Taking", icon="📋"),
-                st.Page(doctor_diagnostics_view, title="Lab & Diagnostics", icon="🔬"),
-                st.Page(doctor_patient_records_view, title="Patient EMR Vault", icon="📂"),
-                st.Page(doctor_ai_assistant_view, title="AI Clinical Assistant", icon="🧠"),
+                st.Page(doctor_station_view, title="Doctor Station & Queue", icon=":material/stethoscope:", default=True),
+                st.Page(doctor_case_taking_view, title="Clinical Case Taking", icon=":material/assignment:"),
+                st.Page(doctor_diagnostics_view, title="Lab & Diagnostics", icon=":material/labs:"),
+                st.Page(doctor_patient_records_view, title="Patient EMR Vault", icon=":material/folder_open:"),
+                st.Page(doctor_ai_assistant_view, title="AI Clinical Assistant", icon=":material/neurology:"),
             ]
         }
     elif active_role == "Nurse":
         pages = {
             "Nurse Station": [
-                st.Page(nurse_station_view, title="Clinic Triage Queue", icon="👩‍⚕️", default=True),
-                st.Page(nurse_checkin_view, title="Check-In & Vitals Intake", icon="⏱️"),
-                st.Page(nurse_care_view, title="Allergies & Care Records", icon="💊"),
-                st.Page(nurse_labs_view, title="Lab Orders Tracking", icon="🧪"),
-                st.Page(nurse_directory_view, title="Patient Directory", icon="📇"),
+                st.Page(nurse_station_view, title="Clinic Triage Queue", icon=":material/medical_services:", default=True),
+                st.Page(nurse_checkin_view, title="Check-In & Vitals Intake", icon=":material/timer:"),
+                st.Page(nurse_care_view, title="Allergies & Care Records", icon=":material/medication:"),
+                st.Page(nurse_labs_view, title="Lab Orders Tracking", icon=":material/experiment:"),
+                st.Page(nurse_directory_view, title="Patient Directory", icon=":material/contacts:"),
             ]
         }
     elif active_role == "Patient":
         pages = {
             "Patient Portal": [
-                st.Page(patient_overview_view, title="My Health Profile", icon="👤", default=True),
-                st.Page(patient_appointments_view, title="My Appointments", icon="📅"),
-                st.Page(patient_medical_records_view, title="My Medical Records", icon="💊"),
-                st.Page(patient_lab_reports_view, title="My Diagnostic Reports", icon="🔬"),
-                st.Page(patient_documents_view, title="My Health Documents", icon="📁"),
-                st.Page(patient_consent_view, title="Consent & Privacy", icon="🔏"),
+                st.Page(patient_overview_view, title="My Health Profile", icon=":material/person:", default=True),
+                st.Page(patient_appointments_view, title="My Appointments", icon=":material/calendar_month:"),
+                st.Page(patient_medical_records_view, title="My Medical Records", icon=":material/medication:"),
+                st.Page(patient_lab_reports_view, title="My Diagnostic Reports", icon=":material/labs:"),
+                st.Page(patient_documents_view, title="My Health Documents", icon=":material/folder:"),
+                st.Page(patient_consent_view, title="Consent & Privacy", icon=":material/policy:"),
             ]
         }
     else:  # Admin (Whole Access)
         pages = {
             "Administration": [
-                st.Page(admin_overview_view, title="Executive Overview", icon="📊", default=True),
-                st.Page(admin_hospitals_view, title="Hospital Administration", icon="🏥"),
-                st.Page(admin_users_view, title="User & Identity Hub", icon="👥"),
-                st.Page(admin_appointments_view, title="Master Appointments", icon="📅"),
+                st.Page(admin_overview_view, title="Executive Overview", icon=":material/monitoring:", default=True),
+                st.Page(admin_hospitals_view, title="Hospital Administration", icon=":material/local_hospital:"),
+                st.Page(admin_users_view, title="User & Identity Hub", icon=":material/groups:"),
+                st.Page(admin_appointments_view, title="Master Appointments", icon=":material/calendar_month:"),
             ],
             "Clinical Vault": [
-                st.Page(admin_clinical_view, title="Clinical Records & EMR", icon="🩺"),
-                st.Page(admin_diagnostics_view, title="Diagnostics Catalog", icon="🔬"),
-                st.Page(admin_documents_view, title="Document Vault", icon="📁"),
+                st.Page(admin_clinical_view, title="Clinical Records & EMR", icon=":material/stethoscope:"),
+                st.Page(admin_diagnostics_view, title="Diagnostics Catalog", icon=":material/labs:"),
+                st.Page(admin_documents_view, title="Document Vault", icon=":material/folder:"),
             ],
             "Security & Intelligence": [
-                st.Page(admin_consent_view, title="Consent Oversight", icon="🔏"),
-                st.Page(admin_audit_view, title="Security & Audit Logs", icon="📜"),
-                st.Page(admin_ai_assistant_view, title="AI Assistant", icon="🧠"),
+                st.Page(admin_consent_view, title="Consent Oversight", icon=":material/policy:"),
+                st.Page(admin_audit_view, title="Security & Audit Logs", icon=":material/receipt_long:"),
+                st.Page(admin_ai_assistant_view, title="AI Assistant", icon=":material/neurology:"),
             ]
         }
 

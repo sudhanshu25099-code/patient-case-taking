@@ -24,7 +24,7 @@ def _get_doctor_context():
 
 def doctor_station_view():
     doctor_id, user_info, doctor = _get_doctor_context()
-    page_header(f"Doctor Station • Dr. {user_info.get('full_name')}", "🩺", f"Specialization: {doctor.get('specialization', 'Physician')} | License: {doctor.get('license_no', 'N/A')}")
+    page_header(f"Doctor Station • Dr. {user_info.get('full_name')}", ":material/stethoscope:", f"Specialization: {doctor.get('specialization', 'Physician')} | License: {doctor.get('license_no', 'N/A')}")
 
     appts = fetch_json(f"/appointments/doctor/{doctor_id}", [])
     scheduled = [a for a in appts if a.get("status") == "Scheduled"]
@@ -32,23 +32,23 @@ def doctor_station_view():
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_kpi_card("Pending Queue", len(scheduled), "Appointments Awaiting", "⏳")
+        render_kpi_card("Pending Queue", len(scheduled), "Appointments Awaiting", ":material/hourglass_top:")
     with c2:
-        render_kpi_card("Completed Visits", len(completed), "Concluded Consultations", "✅")
+        render_kpi_card("Completed Visits", len(completed), "Concluded Consultations", ":material/check_circle:")
     with c3:
-        render_kpi_card("Total Bookings", len(appts), "Assigned to You", "📅")
+        render_kpi_card("Total Bookings", len(appts), "Assigned to You", ":material/calendar_month:")
     with c4:
-        render_kpi_card("Consultation Fee", f"₹{doctor.get('consultation_fee') or 500}", "Standard OPD Rate", "💳")
+        render_kpi_card("Consultation Fee", f"₹{doctor.get('consultation_fee') or 500}", "Standard OPD Rate", ":material/credit_card:")
 
     st.markdown("---")
-    st.subheader("📋 Patient Consultation Queue")
+    st.subheader(":material/assignment: Patient Consultation Queue")
 
     if not appts:
         st.info("No appointments currently assigned to you.")
     else:
         for a in appts:
             is_pending = a.get("status") == "Scheduled"
-            with st.expander(f"{'🔵 [PENDING]' if is_pending else '🟢 [COMPLETED]'} {a.get('appointment_date')} • {a.get('patient_name')} ({a.get('reason')})", expanded=is_pending):
+            with st.expander(f"{':material/radio_button_checked: [PENDING]' if is_pending else ':material/check_circle: [COMPLETED]'} {a.get('appointment_date')} • {a.get('patient_name')} ({a.get('reason')})", expanded=is_pending):
                 c_p1, c_p2, c_p3 = st.columns(3)
                 c_p1.write(f"**Patient:** {a.get('patient_name')}")
                 c_p1.write(f"**Phone:** {a.get('patient_phone') or 'N/A'}")
@@ -62,7 +62,7 @@ def doctor_station_view():
                 if is_pending:
                     col_b1, col_b2 = st.columns([1, 4])
                     with col_b1:
-                        if st.button("🩺 Start Case Taking", key=f"start_case_{a.get('appointment_id')}", type="primary"):
+                        if st.button(":material/stethoscope: Start Case Taking", key=f"start_case_{a.get('appointment_id')}", type="primary"):
                             st.session_state["active_appointment_id"] = a.get("appointment_id")
                             st.session_state["active_patient_id"] = a.get("patient_id")
                             st.session_state["active_hospital_id"] = a.get("hospital_id")
@@ -72,7 +72,7 @@ def doctor_station_view():
 
 def doctor_case_taking_view():
     doctor_id, user_info, _ = _get_doctor_context()
-    page_header("Clinical Case Taking & EMR", "📋", "Pre-visit snapshot, diagnosis, prescriptions, and SOAP notes")
+    page_header("Clinical Case Taking & EMR", ":material/assignment:", "Pre-visit snapshot, diagnosis, prescriptions, and SOAP notes")
 
     active_appt_id = st.session_state.get("active_appointment_id")
     
@@ -100,14 +100,14 @@ def doctor_case_taking_view():
     res_snapshot = api_request("GET", f"/previsit/appointment/{appt_id}")
     snapshot = res_snapshot.json() if res_snapshot and res_snapshot.status_code == 200 else {}
 
-    st.markdown("### 🔍 Pre-Visit Clinical Snapshot")
+    st.markdown("### :material/search: Pre-Visit Clinical Snapshot")
     if snapshot:
         c1, c2 = st.columns(2)
         with c1:
             st.info(f"**Patient:** {snapshot.get('patient_name')} | **DOB:** {snapshot.get('date_of_birth')} | **Gender:** {snapshot.get('gender')}")
             st.write(f"**Today's Reported Symptoms:**\n{snapshot.get('todays_symptoms') or 'None reported at check-in'}")
             if snapshot.get("active_allergies"):
-                st.error(f"🚨 **ALLERGY ALERT:** {snapshot.get('active_allergies')}")
+                st.error(f":material/emergency: **ALLERGY ALERT:** {snapshot.get('active_allergies')}")
             else:
                 st.success("No active allergies recorded.")
 
@@ -121,10 +121,10 @@ def doctor_case_taking_view():
         st.info("No pre-visit check-in data found for this appointment.")
 
     st.markdown("---")
-    st.markdown("### ✍️ Conduct Clinical Consultation")
+    st.markdown("### :material/edit_note: Conduct Clinical Consultation")
 
     tab_visit, tab_diag, tab_rx, tab_soap, tab_summary = st.tabs([
-        "🏥 Clinical Visit & Procedures", "🩺 Diagnoses", "💊 Prescription", "📝 SOAP Notes", "🏁 Conclude & Summary"
+        ":material/local_hospital: Clinical Visit & Procedures", ":material/stethoscope: Diagnoses", ":material/medication: Prescription", ":material/note_alt: SOAP Notes", ":material/flag: Conclude & Summary"
     ])
 
     with tab_visit:
@@ -152,7 +152,7 @@ def doctor_case_taking_view():
                 if res and res.status_code == 201:
                     created_visit_id = res.json().get("visit_id")
                     st.session_state["current_visit_id"] = created_visit_id
-                    st.success(f"✅ Clinical Visit recorded! Visit ID: #{created_visit_id}")
+                    st.success(f":material/check_circle: Clinical Visit recorded! Visit ID: #{created_visit_id}")
                 else:
                     st.error("Failed to create visit.")
 
@@ -165,7 +165,7 @@ def doctor_case_taking_view():
                 payload = {"visit_id": cur_vid, "procedure_name": proc_name, "notes": proc_notes}
                 res = api_request("POST", "/visits/procedures", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Procedure '{proc_name}' attached!")
+                    st.success(f":material/check_circle: Procedure '{proc_name}' attached!")
 
     with tab_diag:
         st.subheader("Clinical Diagnoses")
@@ -187,7 +187,7 @@ def doctor_case_taking_view():
                 }
                 res = api_request("POST", "/visits/diagnoses", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Diagnosis recorded: **{cond_name}** ({diag_type})")
+                    st.success(f":material/check_circle: Diagnosis recorded: **{cond_name}** ({diag_type})")
                 else:
                     st.error("Failed to record diagnosis.")
 
@@ -220,7 +220,7 @@ def doctor_case_taking_view():
                 }
                 res = api_request("POST", "/visits/prescriptions", json=payload)
                 if res and res.status_code == 201:
-                    st.success(f"✅ Prescribed: **{med_name}** ({duration} days)")
+                    st.success(f":material/check_circle: Prescribed: **{med_name}** ({duration} days)")
                 else:
                     st.error("Failed to save prescription.")
 
@@ -243,7 +243,7 @@ def doctor_case_taking_view():
             }
             res = api_request("POST", "/appointments/notes", json=payload)
             if res and res.status_code == 201:
-                st.success("✅ SOAP Note successfully attached to appointment!")
+                st.success(":material/check_circle: SOAP Note successfully attached to appointment!")
             else:
                 st.error("Failed to save note.")
 
@@ -251,28 +251,28 @@ def doctor_case_taking_view():
         st.subheader("Conclude Consultation & Generate Medical Summary")
         col_gen, col_done = st.columns(2)
         with col_gen:
-            if st.button("🤖 Generate Episode Medical Summary"):
+            if st.button(":material/smart_toy: Generate Episode Medical Summary"):
                 res_sum = api_request("POST", f"/summaries/generate/{appt_id}")
                 if res_sum and res_sum.status_code in [200, 201]:
-                    st.success("✅ Consultation summary generated automatically!")
+                    st.success(":material/check_circle: Consultation summary generated automatically!")
                     st.json(res_sum.json())
                 else:
                     st.info("Automated summary processed.")
 
         with col_done:
-            if st.button("🏁 Finalize & Mark COMPLETED", type="primary"):
+            if st.button(":material/flag: Finalize & Mark COMPLETED", type="primary"):
                 res_status = api_request("PATCH", f"/appointments/{appt_id}/status", json={"status": "Completed"})
                 if res_status and res_status.status_code == 200:
-                    st.success("🎉 Consultation completed and appointment marked COMPLETED!")
+                    st.success(":material/celebration: Consultation completed and appointment marked COMPLETED!")
                     st.session_state.pop("active_appointment_id", None)
                     st.rerun()
 
 
 def doctor_diagnostics_view():
     doctor_id, user_info, _ = _get_doctor_context()
-    page_header("Diagnostics & Lab Orders", "🔬", "Order laboratory tests and verify completed pathology & imaging reports")
+    page_header("Diagnostics & Lab Orders", ":material/labs:", "Order laboratory tests and verify completed pathology & imaging reports")
 
-    tab_order, tab_verify, tab_catalog = st.tabs(["🧪 Order Lab Investigation", "✅ Verify Lab Results", "📋 Test Catalog"])
+    tab_order, tab_verify, tab_catalog = st.tabs([":material/experiment: Order Lab Investigation", ":material/check_circle: Verify Lab Results", ":material/assignment: Test Catalog"])
 
     with tab_order:
         tests = fetch_json("/diagnostics/tests", [])
@@ -298,7 +298,7 @@ def doctor_diagnostics_view():
                     }
                     res = api_request("POST", "/diagnostics/orders", json=payload)
                     if res and res.status_code == 201:
-                        st.success(f"✅ Order successfully created! Order ID: #{res.json().get('order_id')}")
+                        st.success(f":material/check_circle: Order successfully created! Order ID: #{res.json().get('order_id')}")
                     else:
                         st.error("Failed to submit diagnostic order.")
 
@@ -319,7 +319,7 @@ def doctor_diagnostics_view():
                     if st.button("Verify Result", key=f"ver_res_{r.get('result_id')}", type="primary"):
                         res_v = api_request("PUT", f"/diagnostics/results/{r.get('result_id')}/verify?verified_by={user_info.get('user_id', 1)}")
                         if res_v and res_v.status_code == 200:
-                            st.success("✅ Result verified!")
+                            st.success(":material/check_circle: Result verified!")
                             st.rerun()
 
     with tab_catalog:
@@ -329,7 +329,7 @@ def doctor_diagnostics_view():
 
 def doctor_patient_records_view():
     doctor_id, user_info, _ = _get_doctor_context()
-    page_header("Patient EMR & Document Vault", "📂", "Review authorized patient clinical histories, past visits, and uploaded documents")
+    page_header("Patient EMR & Document Vault", ":material/folder_open:", "Review authorized patient clinical histories, past visits, and uploaded documents")
     
     patients = fetch_json("/identity/patients", [])
     if not patients:
@@ -343,11 +343,11 @@ def doctor_patient_records_view():
     # Verify Patient Consent Check
     res_consent = api_request("GET", f"/consent/check?patient_id={pat_id}&doctor_id={doctor_id}")
     if res_consent and res_consent.status_code == 200:
-        st.success("🛡️ Verified Active Consent: You are authorized to access this patient's medical records.")
+        st.success(":material/verified_user: Verified Active Consent: You are authorized to access this patient's medical records.")
     else:
-        st.warning("⚠️ Notice: Patient consent status: Standard clinical access granted for consultation.")
+        st.warning(":material/warning: Notice: Patient consent status: Standard clinical access granted for consultation.")
 
-    tab_hist, tab_docs = st.tabs(["🩺 Clinical History", "📁 Medical Document Vault"])
+    tab_hist, tab_docs = st.tabs([":material/stethoscope: Clinical History", ":material/folder: Medical Document Vault"])
 
     with tab_hist:
         c1, c2 = st.columns(2)
@@ -384,9 +384,9 @@ def doctor_patient_records_view():
 
 
 def doctor_ai_assistant_view():
-    page_header("AI Clinical Assistant", "🧠", "Clinical NLP note summarization, symptom extraction, and decision support")
+    page_header("AI Clinical Assistant", ":material/neurology:", "Clinical NLP note summarization, symptom extraction, and decision support")
 
-    st.info("💡 Paste raw doctor consultation thoughts, symptoms, or nurse intake logs below. The AI Clinical Engine extracts key symptoms and generates structured recommendations.")
+    st.info(":material/lightbulb: Paste raw doctor consultation thoughts, symptoms, or nurse intake logs below. The AI Clinical Engine extracts key symptoms and generates structured recommendations.")
 
     raw_text = st.text_area(
         "Clinical Input Notes",

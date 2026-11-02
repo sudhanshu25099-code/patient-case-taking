@@ -3,10 +3,10 @@ from datetime import datetime
 from utils.api_client import api_request
 from utils.ui_helpers import apply_theme, page_header, check_login
 
-st.set_page_config(page_title="Consent", page_icon="🔏")
+st.set_page_config(page_title="Consent", page_icon=":material/policy:")
 apply_theme()
 check_login()
-page_header("Consent Management", "🔏", "Grant and verify patient record access.")
+page_header("Consent Management", ":material/policy:", "Grant and verify patient record access.")
 
 tab1, tab2 = st.tabs(["Check Access", "Grant Access"])
 
@@ -18,9 +18,9 @@ with tab1:
     if st.button("Verify Consent"):
         res = api_request("GET", f"/consent/check?patient_id={pid}&doctor_id={did}")
         if res.status_code == 200:
-            st.success("✅ Active consent found! Access granted.")
+            st.success(":material/check_circle: Active consent found! Access granted.")
         else:
-            st.error("❌ No active consent. Access denied.")
+            st.error(":material/cancel: No active consent. Access denied.")
 
 with tab2:
     with st.form("grant_consent"):
@@ -35,4 +35,4 @@ with tab2:
             }
             res = api_request("POST", "/consent", json=payload)
             if res.status_code == 201:
-                st.success("✅ Consent granted!")
+                st.success(":material/check_circle: Consent granted!")

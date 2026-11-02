@@ -26,28 +26,28 @@ def _get_patient_context():
 
 def patient_overview_view():
     patient_id, person_id, user_info, patient = _get_patient_context()
-    page_header("My Health Profile", "👤", f"Personal Health Record for {user_info.get('full_name')}")
+    page_header("My Health Profile", ":material/person:", f"Personal Health Record for {user_info.get('full_name')}")
 
     # Top KPI row
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        render_kpi_card("Blood Group", patient.get("blood_group") or "Not Set", "Recorded in Profile", "🩸")
+        render_kpi_card("Blood Group", patient.get("blood_group") or "Not Set", "Recorded in Profile", ":material/bloodtype:")
     with c2:
-        abha = "Linked ✅" if patient.get("abha_linked") else "Not Linked ⚠️"
-        render_kpi_card("ABHA ID", abha, "Ayushman Bharat Digital Health", "🆔")
+        abha = "Linked" if patient.get("abha_linked") else "Not Linked"
+        render_kpi_card("ABHA ID", abha, "Ayushman Bharat Digital Health", ":material/badge:")
     with c3:
         appts = fetch_json(f"/appointments/patient/{patient_id}", [])
         upcoming = len([a for a in appts if a.get("status") == "Scheduled"])
-        render_kpi_card("Upcoming Visits", upcoming, "Confirmed Consultations", "📅")
+        render_kpi_card("Upcoming Visits", upcoming, "Confirmed Consultations", ":material/calendar_month:")
     with c4:
         allergies = fetch_json(f"/visits/patient/{patient_id}/allergies", [])
-        render_kpi_card("Known Allergies", len(allergies), "Active Alerts", "⚠️")
+        render_kpi_card("Known Allergies", len(allergies), "Active Alerts", ":material/warning:")
 
     st.markdown("---")
     
     col_info, col_contact = st.columns(2)
     with col_info:
-        st.subheader("📋 Demographic Profile")
+        st.subheader(":material/assignment: Demographic Profile")
         person = fetch_json(f"/identity/persons/{person_id}", {}) if person_id else {}
         
         st.write(f"**Full Name:** {person.get('full_name') or user_info.get('full_name')}")
@@ -57,7 +57,7 @@ def patient_overview_view():
         st.write(f"**Phone:** {person.get('phone') or 'N/A'}")
         st.write(f"**Address:** {person.get('address') or 'N/A'}, {person.get('city') or ''}, {person.get('state') or ''}")
 
-        with st.expander("✏️ Update Contact Information"):
+        with st.expander(":material/edit: Update Contact Information"):
             with st.form("update_contact_form"):
                 up_phone = st.text_input("Phone Number", value=person.get("phone") or "")
                 up_addr = st.text_input("Address", value=person.get("address") or "")
@@ -77,31 +77,31 @@ def patient_overview_view():
                     }
                     res = api_request("PUT", f"/identity/persons/{person_id}", json=payload)
                     if res and res.status_code == 200:
-                        st.success("✅ Contact info updated!")
+                        st.success(":material/check_circle: Contact info updated!")
                         st.rerun()
                     else:
                         st.error("Failed to update contact info.")
         
     with col_contact:
-        st.subheader("🚨 Emergency Contact & Safety")
+        st.subheader(":material/emergency: Emergency Contact & Safety")
         st.info(f"""
             **Contact Person:** {patient.get('emergency_contact_name') or 'Not Registered'}\n
             **Contact Phone:** {patient.get('emergency_contact_phone') or 'Not Registered'}
         """)
         
-        st.subheader("🛡️ ABHA Linkage")
+        st.subheader(":material/verified_user: ABHA Linkage")
         if not patient.get("abha_linked"):
             if st.button("Link My ABHA / Ayushman Bharat ID", type="primary"):
-                st.success("✅ ABHA Account linked successfully!")
+                st.success(":material/check_circle: ABHA Account linked successfully!")
         else:
-            st.success("✅ Your profile is connected with the National Health Network.")
+            st.success(":material/check_circle: Your profile is connected with the National Health Network.")
 
 
 def patient_appointments_view():
     patient_id, _, user_info, _ = _get_patient_context()
-    page_header("My Appointments", "📅", "View scheduled visits and book new consultations")
+    page_header("My Appointments", ":material/calendar_month:", "View scheduled visits and book new consultations")
 
-    tab_my, tab_book, tab_reschedule = st.tabs(["🗓️ My Appointments", "➕ Book Consultation", "🔄 Reschedule / Cancel"])
+    tab_my, tab_book, tab_reschedule = st.tabs([":material/calendar_month: My Appointments", ":material/add_circle: Book Consultation", ":material/refresh: Reschedule / Cancel"])
 
     with tab_my:
         appts = fetch_json(f"/appointments/patient/{patient_id}", [])
@@ -109,7 +109,7 @@ def patient_appointments_view():
             st.info("You have no appointments booked yet.")
         else:
             for a in appts:
-                status_color = "🟢" if a.get("status") == "Scheduled" else "⚪"
+                status_color = ":material/check_circle:" if a.get("status") == "Scheduled" else ":material/radio_button_unchecked:"
                 with st.expander(f"{status_color} {a.get('appointment_date')} at {str(a.get('time_slot'))[:5]} — Dr. {a.get('doctor_name')} ({a.get('hospital_name')})", expanded=True):
                     c1, c2, c3 = st.columns(3)
                     c1.write(f"**Doctor:** Dr. {a.get('doctor_name')}")
@@ -157,7 +157,7 @@ def patient_appointments_view():
                     }
                     res = api_request("POST", "/appointments", json=payload)
                     if res is not None and res.status_code == 201:
-                        st.success("🎉 Appointment successfully booked!")
+                        st.success(":material/celebration: Appointment successfully booked!")
                         st.rerun()
                     else:
                         st.error(f"Failed to book appointment: {res.text if res else 'Unknown error'}")
@@ -192,7 +192,7 @@ def patient_appointments_view():
                         }
                         res = api_request("PUT", f"/appointments/{sel_appt['appointment_id']}", json=payload)
                         if res and res.status_code == 200:
-                            st.success("✅ Appointment rescheduled successfully!")
+                            st.success(":material/check_circle: Appointment rescheduled successfully!")
                             st.rerun()
                         else:
                             st.error("Failed to reschedule.")
@@ -209,10 +209,10 @@ def patient_appointments_view():
 
 def patient_medical_records_view():
     patient_id, _, _, _ = _get_patient_context()
-    page_header("My Medical Records", "💊", "Prescriptions, Diagnoses, Clinical Summaries & Past Visits")
+    page_header("My Medical Records", ":material/medication:", "Prescriptions, Diagnoses, Clinical Summaries & Past Visits")
 
     tab_cond, tab_allergies, tab_summaries, tab_visits = st.tabs([
-        "🩺 Active Conditions", "⚠️ Allergies", "📄 Visit Summaries", "🏥 Past Clinic Visits"
+        ":material/stethoscope: Active Conditions", ":material/warning: Allergies", ":material/description: Visit Summaries", ":material/local_hospital: Past Clinic Visits"
     ])
 
     with tab_cond:
@@ -229,7 +229,7 @@ def patient_medical_records_view():
             st.success("No known active drug or food allergies on record.")
         else:
             for al in allergies:
-                st.error(f"⚠️ **Allergen:** {al.get('allergen')} | **Reaction:** {al.get('reaction')} | **Severity:** {al.get('severity')} | **Status:** {al.get('status')}")
+                st.error(f":material/warning: **Allergen:** {al.get('allergen')} | **Reaction:** {al.get('reaction')} | **Severity:** {al.get('severity')} | **Status:** {al.get('status')}")
 
     with tab_summaries:
         summaries = fetch_json(f"/summaries/patient/{patient_id}", [])
@@ -254,9 +254,9 @@ def patient_medical_records_view():
 
 def patient_lab_reports_view():
     patient_id, _, _, _ = _get_patient_context()
-    page_header("My Diagnostic Reports", "🔬", "Lab test results and investigation reports")
+    page_header("My Diagnostic Reports", ":material/labs:", "Lab test results and investigation reports")
 
-    tab_results, tab_catalog = st.tabs(["🧪 Test Results & Reports", "📋 Hospital Diagnostic Catalog"])
+    tab_results, tab_catalog = st.tabs([":material/experiment: Test Results & Reports", ":material/assignment: Hospital Diagnostic Catalog"])
 
     with tab_results:
         results = fetch_json("/diagnostics/results", [])
@@ -280,9 +280,9 @@ def patient_lab_reports_view():
 
 def patient_documents_view():
     patient_id, _, user_info, _ = _get_patient_context()
-    page_header("My Health Documents", "📁", "Upload and access past prescriptions, scans and discharge summaries")
+    page_header("My Health Documents", ":material/folder:", "Upload and access past prescriptions, scans and discharge summaries")
 
-    tab_list, tab_upload = st.tabs(["📂 Document Vault", "⬆️ Upload Record"])
+    tab_list, tab_upload = st.tabs([":material/folder_open: Document Vault", ":material/upload: Upload Record"])
 
     with tab_list:
         docs = fetch_json(f"/documents/patient/{patient_id}", [])
@@ -290,7 +290,7 @@ def patient_documents_view():
             st.info("No documents uploaded yet.")
         else:
             for doc in docs:
-                status_badge = "🟢 Verified" if doc.get("verification_status") == "Verified" else "🟡 Pending Verification"
+                status_badge = ":material/check_circle: Verified" if doc.get("verification_status") == "Verified" else ":material/pending: Pending Verification"
                 with st.expander(f"{doc.get('title')} ({status_badge})"):
                     c1, c2 = st.columns(2)
                     c1.write(f"**File Size:** {round(doc.get('file_size', 0)/1024, 1)} KB")
@@ -330,7 +330,7 @@ def patient_documents_view():
                         auth=(st.session_state["username"], st.session_state["password"])
                     )
                     if res.status_code == 201:
-                        st.success("✅ Document uploaded and saved to your health vault!")
+                        st.success(":material/check_circle: Document uploaded and saved to your health vault!")
                         st.rerun()
                     else:
                         st.error(f"Upload failed: {res.text}")
@@ -338,9 +338,9 @@ def patient_documents_view():
 
 def patient_consent_view():
     patient_id, _, _, _ = _get_patient_context()
-    page_header("Consent & Privacy", "🔏", "Control who can access your medical records and consultation history")
+    page_header("Consent & Privacy", ":material/policy:", "Control who can access your medical records and consultation history")
 
-    tab_active, tab_grant = st.tabs(["🛡️ Active Consents & Audit", "➕ Authorize Doctor / Hospital"])
+    tab_active, tab_grant = st.tabs([":material/verified_user: Active Consents & Audit", ":material/add_circle: Authorize Doctor / Hospital"])
 
     with tab_active:
         consents = fetch_json(f"/consent/patient/{patient_id}", [])
@@ -348,7 +348,7 @@ def patient_consent_view():
             st.info("No active consent authorizations registered.")
         else:
             for c in consents:
-                status_icon = "🟢 Active" if c.get("status") == "Active" else "🔴 Revoked"
+                status_icon = ":material/check_circle: Active" if c.get("status") == "Active" else ":material/cancel: Revoked"
                 with st.expander(f"{status_icon} — Consent #{c.get('consent_id')}: {c.get('purpose', 'General Care')}"):
                     st.write(f"**Consent Type:** {c.get('consent_type', 'Full Access')}")
                     st.write(f"**Valid From:** {c.get('valid_from')} to {c.get('valid_to') or 'Indefinite'}")
@@ -387,7 +387,7 @@ def patient_consent_view():
                 }
                 res = api_request("POST", "/consent", json=payload)
                 if res is not None and res.status_code == 201:
-                    st.success("✅ Consent successfully granted!")
+                    st.success(":material/check_circle: Consent successfully granted!")
                     st.rerun()
                 else:
                     st.error("Failed to grant consent.")

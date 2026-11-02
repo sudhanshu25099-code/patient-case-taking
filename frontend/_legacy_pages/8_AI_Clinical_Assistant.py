@@ -3,10 +3,10 @@ from utils.api_client import api_request
 from utils.ui_helpers import apply_theme, page_header, check_login
 from utils.ai_engine import generate_mock_summary
 
-st.set_page_config(page_title="AI Assistant", page_icon="🧠")
+st.set_page_config(page_title="AI Assistant", page_icon=":material/neurology:")
 apply_theme()
 check_login()
-page_header("AI Clinical Assistant", "🧠", "Analyze clinical notes and generate summaries.")
+page_header("AI Clinical Assistant", ":material/neurology:", "Analyze clinical notes and generate summaries.")
 
 st.info("Paste clinical notes below. The AI engine will extract symptoms and generate a summary.")
 

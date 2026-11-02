@@ -24,12 +24,12 @@ def api_request(method, endpoint, json=None, files=None, params=None, stop_on_un
         
         if response.status_code == 401 and stop_on_unauth:
             st.session_state.clear()
-            st.error("🔒 Session expired. Please log in again.")
+            st.error(":material/lock: Session expired. Please log in again.")
             st.stop()
             
         return response
     except requests.exceptions.ConnectionError:
-        st.error(f"🔌 Cannot connect to backend at {BASE_URL}. Ensure FastAPI is running.")
+        st.error(f":material/cloud_off: Cannot connect to backend at {BASE_URL}. Ensure FastAPI is running.")
         return None
     except Exception as e:
         st.error(f"Request error: {e}")
