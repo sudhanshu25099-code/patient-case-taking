@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
-from utils.api_client import api_request, fetch_json
-from utils.ui_helpers import page_header, render_kpi_card, render_status_badge, check_login
+from utils.api_client import api_request, fetch_json, handle_action_response
+from utils.ui_helpers import (
+    page_header, render_kpi_card, render_status_badge, check_login,
+    flash_success, flash_error, flash_warning
+)
 from utils.ai_engine import generate_mock_summary
 
 
@@ -86,17 +89,21 @@ def admin_hospitals_view():
             email = c_email.text_input("Official Email", placeholder="admin@apexhospital.org")
 
             if st.form_submit_button("Register Hospital", type="primary"):
+                if not name.strip() or not reg_no.strip():
+                    flash_warning("Please provide both Hospital Name and Registration Number.")
+                    st.rerun()
                 payload = {
-                    "name": name, "registration_no": reg_no, "address": address,
+                    "name": name.strip(), "registration_no": reg_no.strip(), "address": address,
                     "city": city, "state": state, "contact_no": contact_no, "email": email
                 }
                 res = api_request("POST", "/hospitals", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Hospital registered! ID: #{res.json().get('hospital_id')}")
-                    st.rerun()
-                else:
-                    detail = res.json().get("detail") if res else "Connection failed"
-                    st.error(f"Failed to register hospital: {detail}")
+                hid = res.json().get('hospital_id') if res and res.status_code == 201 else ''
+                handle_action_response(
+                    res,
+                    success_msg=f"Healthcare facility '{name}' registered successfully! (Facility ID #{hid})",
+                    error_prefix="Failed to register hospital",
+                    rerun=True
+                )
 
     with tab_add_dept:
         st.subheader("Add Department to Healthcare Facility")
@@ -110,6 +117,7 @@ def admin_hospitals_view():
                 st.info(f":material/assignment: **Existing departments in {sel_h}:** " + ", ".join([f"`{n}`" for n in dept_names]))
         else:
             sel_hid = st.number_input("Hospital ID", min_value=1, value=1)
+            sel_h = f"Hospital #{sel_hid}"
 
         with st.form("add_dept_form"):
             dept_name = st.text_input("New Department Name", placeholder="e.g. Oncology, Radiology, Nephrology")
@@ -117,16 +125,17 @@ def admin_hospitals_view():
 
             if st.form_submit_button("Create Department", type="primary"):
                 if not dept_name.strip():
-                    st.warning("Please provide a department name.")
-                else:
-                    payload = {"name": dept_name.strip(), "description": desc}
-                    res = api_request("POST", f"/hospitals/{sel_hid}/departments", json=payload)
-                    if res and res.status_code == 201:
-                        st.success(f":material/check_circle: Department created! ID: #{res.json().get('department_id')}")
-                        st.rerun()
-                    else:
-                        detail = res.json().get("detail") if res else "Connection error"
-                        st.error(f"Failed to create department: {detail}")
+                    flash_warning("Please provide a department name.")
+                    st.rerun()
+                payload = {"name": dept_name.strip(), "description": desc}
+                res = api_request("POST", f"/hospitals/{sel_hid}/departments", json=payload)
+                did = res.json().get('department_id') if res and res.status_code == 201 else ''
+                handle_action_response(
+                    res,
+                    success_msg=f"Department '{dept_name}' created successfully in {sel_h}! (Dept ID #{did})",
+                    error_prefix=f"Failed to create department in {sel_h}",
+                    rerun=True
+                )
 
     with tab_link_doc:
         st.subheader("Current Doctor Affiliations Across Network")
@@ -144,6 +153,7 @@ def admin_hospitals_view():
                 sel_hid = h_map[sel_h]
             else:
                 sel_hid = st.number_input("Hospital ID", min_value=1, value=1)
+                sel_h = f"Hospital #{sel_hid}"
 
             if doctors:
                 d_map = {f"Dr. {d['full_name']} ({d.get('specialization', 'Physician')})": d["doctor_id"] for d in doctors}
@@ -151,6 +161,7 @@ def admin_hospitals_view():
                 sel_did = d_map[sel_d]
             else:
                 sel_did = st.number_input("Doctor ID", min_value=1, value=1)
+                sel_d = f"Doctor #{sel_did}"
 
             if st.form_submit_button("Affiliate Doctor", type="primary"):
                 payload = {
@@ -160,12 +171,12 @@ def admin_hospitals_view():
                     "is_active": True
                 }
                 res = api_request("POST", f"/hospitals/{sel_hid}/doctors/{sel_did}", json=payload)
-                if res and res.status_code in [200, 201]:
-                    st.success(":material/check_circle: Doctor affiliation recorded/updated successfully!")
-                    st.rerun()
-                else:
-                    detail = res.json().get("detail") if res else "Connection error"
-                    st.error(f"Could not link doctor: {detail}")
+                handle_action_response(
+                    res,
+                    success_msg=f"Affiliation confirmed: {sel_d} linked with {sel_h} successfully!",
+                    error_prefix="Could not update doctor affiliation",
+                    rerun=True
+                )
 
 
 def admin_users_view():
@@ -201,16 +212,21 @@ def admin_users_view():
             state = c_state.text_input("State", placeholder="Delhi")
 
             if st.form_submit_button("Register Person", type="primary"):
+                if not full_name.strip():
+                    flash_warning("Please provide person's full name.")
+                    st.rerun()
                 payload = {
-                    "full_name": full_name, "date_of_birth": str(dob), "gender": gender,
-                    "phone": phone, "email": email, "address": addr, "city": city, "state": state
+                    "full_name": full_name.strip(), "date_of_birth": str(dob), "gender": gender,
+                    "phone": phone.strip(), "email": email.strip(), "address": addr, "city": city, "state": state
                 }
                 res = api_request("POST", "/identity/persons", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Person created with ID: #{res.json().get('person_id')}")
-                    st.rerun()
-                else:
-                    st.error("Failed to create person.")
+                pid = res.json().get('person_id') if res and res.status_code == 201 else ''
+                handle_action_response(
+                    res,
+                    success_msg=f"Person '{full_name}' registered successfully! (Person ID #{pid})",
+                    error_prefix="Failed to register person",
+                    rerun=True
+                )
 
     with tab_user:
         persons = fetch_json("/identity/persons", [])
@@ -223,25 +239,31 @@ def admin_users_view():
                 sel_pid = p_map[sel_p]
             else:
                 sel_pid = st.number_input("Person ID", min_value=1, value=1)
+                sel_p = f"Person #{sel_pid}"
 
             username = st.text_input("Username", placeholder="e.g. dr.ramesh")
             email = st.text_input("Email", placeholder="ramesh@example.com")
             password = st.text_input("Initial Password", type="password", placeholder="Minimum 6 characters")
 
             if st.form_submit_button("Create User Account", type="primary"):
+                if not username.strip() or not password.strip():
+                    flash_warning("Username and Password are required.")
+                    st.rerun()
                 payload = {
                     "person_id": sel_pid,
-                    "username": username,
-                    "email": email,
-                    "password": password,
+                    "username": username.strip(),
+                    "email": email.strip(),
+                    "password": password.strip(),
                     "is_active": True
                 }
                 res = api_request("POST", "/identity/users", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: User account created! User ID: #{res.json().get('user_id')}")
-                    st.rerun()
-                else:
-                    st.error(f"Failed to create user: {res.text if res else 'Unknown error'}")
+                uid = res.json().get('user_id') if res and res.status_code == 201 else ''
+                handle_action_response(
+                    res,
+                    success_msg=f"User account '@{username}' created successfully! (User ID #{uid})",
+                    error_prefix="Failed to create user account",
+                    rerun=True
+                )
 
     with tab_role:
         users = fetch_json("/identity/users", [])
@@ -258,11 +280,12 @@ def admin_users_view():
                 if st.form_submit_button("Assign Role", type="primary"):
                     payload = {"role_id": r_map[sel_r]}
                     res = api_request("POST", f"/identity/users/{u_map[sel_u]}/roles", json=payload)
-                    if res and res.status_code in [200, 201]:
-                        st.success(f":material/check_circle: Role '{sel_r}' successfully assigned!")
-                        st.rerun()
-                    else:
-                        st.error("Failed to assign role.")
+                    handle_action_response(
+                        res,
+                        success_msg=f"Role '{sel_r}' granted to {sel_u} successfully!",
+                        error_prefix="Failed to assign role",
+                        rerun=True
+                    )
             else:
                 st.info("Users or roles not available.")
 
@@ -276,12 +299,17 @@ def admin_users_view():
                 new_pass = st.text_input("New Password", type="password")
 
                 if st.form_submit_button("Update Password", type="primary"):
+                    if not new_pass.strip():
+                        flash_warning("Please provide a new password.")
+                        st.rerun()
                     uid = u_map[sel_user]
-                    res_p = api_request("PATCH", f"/identity/users/{uid}/password", json={"new_password": new_pass})
-                    if res_p and res_p.status_code == 200:
-                        st.success(":material/check_circle: Password updated successfully!")
-                    else:
-                        st.error("Failed to update password.")
+                    res_p = api_request("PATCH", f"/identity/users/{uid}/password", json={"new_password": new_pass.strip()})
+                    handle_action_response(
+                        res_p,
+                        success_msg=f"Password for {sel_user} updated successfully!",
+                        error_prefix="Failed to update password",
+                        rerun=True
+                    )
 
     with tab_prof:
         st.subheader("Create Doctor, Nurse or Patient Clinical Profile")
@@ -299,14 +327,21 @@ def admin_users_view():
                 fee = st.number_input("Consultation Fee (INR)", min_value=0, value=700)
 
                 if st.form_submit_button("Create Doctor Profile", type="primary"):
-                    if sel_p:
-                        payload = {
-                            "person_id": p_map[sel_p], "license_no": lic, "specialization": spec,
-                            "qualification": qual, "consultation_fee": fee, "experience_years": 8
-                        }
-                        res = api_request("POST", "/identity/doctors", json=payload)
-                        if res and res.status_code == 201:
-                            st.success(f":material/check_circle: Doctor profile created! Doctor ID: #{res.json().get('doctor_id')}")
+                    if not sel_p:
+                        flash_warning("Please select a person.")
+                        st.rerun()
+                    payload = {
+                        "person_id": p_map[sel_p], "license_no": lic, "specialization": spec,
+                        "qualification": qual, "consultation_fee": fee, "experience_years": 8
+                    }
+                    res = api_request("POST", "/identity/doctors", json=payload)
+                    did = res.json().get('doctor_id') if res and res.status_code == 201 else ''
+                    handle_action_response(
+                        res,
+                        success_msg=f"Doctor profile created successfully for {sel_p}! (Doctor ID #{did})",
+                        error_prefix="Failed to create doctor profile",
+                        rerun=True
+                    )
 
         elif profile_type == "Nurse Profile":
             with st.form("create_nurse_prof"):
@@ -315,11 +350,18 @@ def admin_users_view():
                 shift = st.selectbox("Assigned Shift", ["Morning", "Evening", "Night"])
 
                 if st.form_submit_button("Create Nurse Profile", type="primary"):
-                    if sel_p:
-                        payload = {"person_id": p_map[sel_p], "employee_no": emp_no, "shift": shift}
-                        res = api_request("POST", "/identity/nurses", json=payload)
-                        if res and res.status_code == 201:
-                            st.success(f":material/check_circle: Nurse profile created! Nurse ID: #{res.json().get('nurse_id')}")
+                    if not sel_p:
+                        flash_warning("Please select a person.")
+                        st.rerun()
+                    payload = {"person_id": p_map[sel_p], "employee_no": emp_no, "shift": shift}
+                    res = api_request("POST", "/identity/nurses", json=payload)
+                    nid = res.json().get('nurse_id') if res and res.status_code == 201 else ''
+                    handle_action_response(
+                        res,
+                        success_msg=f"Nurse profile created successfully for {sel_p}! (Nurse ID #{nid})",
+                        error_prefix="Failed to create nurse profile",
+                        rerun=True
+                    )
 
         else:
             with st.form("create_pat_prof"):
@@ -329,15 +371,22 @@ def admin_users_view():
                 em_phone = st.text_input("Emergency Contact Phone")
 
                 if st.form_submit_button("Create Patient Profile", type="primary"):
-                    if sel_p:
-                        payload = {
-                            "person_id": p_map[sel_p], "blood_group": bg,
-                            "emergency_contact_name": em_name, "emergency_contact_phone": em_phone,
-                            "abha_linked": False
-                        }
-                        res = api_request("POST", "/identity/patients", json=payload)
-                        if res and res.status_code == 201:
-                            st.success(f":material/check_circle: Patient profile created! Patient ID: #{res.json().get('patient_id')}")
+                    if not sel_p:
+                        flash_warning("Please select a person.")
+                        st.rerun()
+                    payload = {
+                        "person_id": p_map[sel_p], "blood_group": bg,
+                        "emergency_contact_name": em_name, "emergency_contact_phone": em_phone,
+                        "abha_linked": False
+                    }
+                    res = api_request("POST", "/identity/patients", json=payload)
+                    pid = res.json().get('patient_id') if res and res.status_code == 201 else ''
+                    handle_action_response(
+                        res,
+                        success_msg=f"Patient profile created successfully for {sel_p}! (Patient ID #{pid})",
+                        error_prefix="Failed to create patient profile",
+                        rerun=True
+                    )
 
 
 def admin_appointments_view():
@@ -391,11 +440,18 @@ def admin_diagnostics_view():
             desc = st.text_input("Description", placeholder="Serum 25-hydroxyvitamin D measurement")
 
             if st.form_submit_button("Add Test", type="primary"):
-                payload = {"test_name": t_name, "category": cat, "description": desc}
-                res = api_request("POST", "/diagnostics/tests", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Diagnostic test added! Test ID: #{res.json().get('test_id')}")
+                if not t_name.strip():
+                    flash_warning("Please provide a test name.")
                     st.rerun()
+                payload = {"test_name": t_name.strip(), "category": cat, "description": desc}
+                res = api_request("POST", "/diagnostics/tests", json=payload)
+                tid = res.json().get('test_id') if res and res.status_code == 201 else ''
+                handle_action_response(
+                    res,
+                    success_msg=f"Diagnostic test '{t_name}' added to catalog! (Test ID #{tid})",
+                    error_prefix="Failed to add diagnostic test",
+                    rerun=True
+                )
 
     with tab_add_p:
         tests = fetch_json("/diagnostics/tests", [])
@@ -409,15 +465,22 @@ def admin_diagnostics_view():
                 ref_range = st.text_input("Reference Range", placeholder="13.8 - 17.2 g/dL")
 
                 if st.form_submit_button("Attach Parameter", type="primary"):
+                    if not p_name.strip():
+                        flash_warning("Please provide parameter name.")
+                        st.rerun()
                     payload = {
                         "test_id": t_map[sel_test],
-                        "parameter_name": p_name,
-                        "unit": unit,
-                        "reference_range": ref_range
+                        "parameter_name": p_name.strip(),
+                        "unit": unit.strip(),
+                        "reference_range": ref_range.strip()
                     }
                     res = api_request("POST", "/diagnostics/parameters", json=payload)
-                    if res and res.status_code == 201:
-                        st.success(f":material/check_circle: Parameter added to {sel_test}!")
+                    handle_action_response(
+                        res,
+                        success_msg=f"Parameter '{p_name}' successfully attached to {sel_test}!",
+                        error_prefix="Failed to attach parameter",
+                        rerun=True
+                    )
 
 
 def admin_documents_view():
@@ -434,10 +497,16 @@ def admin_documents_view():
         with st.form("add_doc_type_form"):
             t_name = st.text_input("New Document Category Name", placeholder="e.g. Genetic Profile, Vaccination Card")
             if st.form_submit_button("Add Category", type="primary"):
-                res = api_request("POST", "/documents/types", json={"name": t_name})
-                if res and res.status_code == 201:
-                    st.success(":material/check_circle: Category added!")
+                if not t_name.strip():
+                    flash_warning("Please enter category name.")
                     st.rerun()
+                res = api_request("POST", "/documents/types", json={"name": t_name.strip()})
+                handle_action_response(
+                    res,
+                    success_msg=f"Document category '{t_name}' added successfully!",
+                    error_prefix="Failed to add document category",
+                    rerun=True
+                )
 
     with tab_tags:
         tags = fetch_json("/documents/tags", [])
@@ -447,10 +516,16 @@ def admin_documents_view():
         with st.form("add_tag_form"):
             tag_name = st.text_input("New Tag", placeholder="e.g. Urgent, Second-Opinion, Confidential")
             if st.form_submit_button("Create Tag", type="primary"):
-                res = api_request("POST", "/documents/tags", json={"name": tag_name})
-                if res and res.status_code == 201:
-                    st.success(":material/check_circle: Tag created!")
+                if not tag_name.strip():
+                    flash_warning("Please enter tag name.")
                     st.rerun()
+                res = api_request("POST", "/documents/tags", json={"name": tag_name.strip()})
+                handle_action_response(
+                    res,
+                    success_msg=f"Document tag '{tag_name}' created successfully!",
+                    error_prefix="Failed to create tag",
+                    rerun=True
+                )
 
 
 def admin_consent_view():
@@ -494,8 +569,8 @@ def admin_audit_view():
                     st.write(n.get("message"))
                     if not n.get("is_read"):
                         if st.button("Mark as Read", key=f"notif_r_{n.get('notification_id')}"):
-                            api_request("PATCH", f"/logs/notifications/{n.get('notification_id')}/read")
-                            st.rerun()
+                            res = api_request("PATCH", f"/logs/notifications/{n.get('notification_id')}/read")
+                            handle_action_response(res, "Notification marked as read!", "Failed to update notification", rerun=True)
         else:
             st.info("No notifications pending.")
 

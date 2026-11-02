@@ -36,6 +36,42 @@ def api_request(method, endpoint, json=None, files=None, params=None, stop_on_un
         return None
 
 
+def extract_error_detail(res, default="An unexpected error occurred."):
+    """Extract a user-readable error detail string from response."""
+    if res is None:
+        return "Backend server is unreachable. Please verify that FastAPI is running."
+    try:
+        data = res.json()
+        if isinstance(data, dict):
+            detail = data.get("detail")
+            if detail:
+                if isinstance(detail, list):
+                    errs = [f"{e.get('loc', [''])[-1]}: {e.get('msg')}" for e in detail if isinstance(e, dict)]
+                    return "; ".join(errs)
+                return str(detail)
+            msg = data.get("message")
+            if msg:
+                return str(msg)
+        return res.text[:250] or default
+    except Exception:
+        return res.text[:250] if hasattr(res, "text") and res.text else default
+
+
+def handle_action_response(res, success_msg: str, error_prefix: str = "Action failed", rerun: bool = True) -> bool:
+    """Evaluate API mutation response, dispatch persistent toast/banner, and optionally rerun."""
+    from utils.ui_helpers import flash_success, flash_error
+    if res is not None and 200 <= res.status_code < 300:
+        flash_success(success_msg)
+        if rerun:
+            st.rerun()
+        return True
+    else:
+        detail = extract_error_detail(res)
+        code_str = f" [HTTP {res.status_code}]" if res is not None else ""
+        flash_error(f"{error_prefix}{code_str}: {detail}")
+        return False
+
+
 # Convenient data loaders with safe fallbacks
 def fetch_json(endpoint, default=None):
     if default is None:

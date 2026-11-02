@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
-from utils.api_client import api_request, fetch_json
-from utils.ui_helpers import page_header, render_kpi_card, render_status_badge, check_login
+from utils.api_client import api_request, fetch_json, handle_action_response
+from utils.ui_helpers import (
+    page_header, render_kpi_card, render_status_badge, check_login,
+    flash_success, flash_error, flash_warning
+)
 from utils.ai_engine import generate_mock_summary
 
 
@@ -152,9 +155,14 @@ def doctor_case_taking_view():
                 if res and res.status_code == 201:
                     created_visit_id = res.json().get("visit_id")
                     st.session_state["current_visit_id"] = created_visit_id
-                    st.success(f":material/check_circle: Clinical Visit recorded! Visit ID: #{created_visit_id}")
+                    handle_action_response(
+                        res,
+                        success_msg=f"Clinical Visit recorded successfully! (Visit #{created_visit_id})",
+                        error_prefix="Failed to record clinical visit",
+                        rerun=True
+                    )
                 else:
-                    st.error("Failed to create visit.")
+                    handle_action_response(res, "", error_prefix="Failed to record clinical visit", rerun=False)
 
         st.subheader("2. Record Procedures Performed")
         cur_vid = st.session_state.get("current_visit_id", 1)
@@ -162,10 +170,17 @@ def doctor_case_taking_view():
             proc_name = st.text_input("Procedure Name", placeholder="e.g. Nebulization, Wound dressing, ECG")
             proc_notes = st.text_input("Procedure Notes / Outcome")
             if st.form_submit_button("Attach Procedure"):
-                payload = {"visit_id": cur_vid, "procedure_name": proc_name, "notes": proc_notes}
+                if not proc_name.strip():
+                    flash_warning("Please provide procedure name.")
+                    st.rerun()
+                payload = {"visit_id": cur_vid, "procedure_name": proc_name.strip(), "notes": proc_notes}
                 res = api_request("POST", "/visits/procedures", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Procedure '{proc_name}' attached!")
+                handle_action_response(
+                    res,
+                    success_msg=f"Procedure '{proc_name}' recorded and attached to visit #{cur_vid}!",
+                    error_prefix="Failed to record procedure",
+                    rerun=True
+                )
 
     with tab_diag:
         st.subheader("Clinical Diagnoses")
@@ -178,18 +193,23 @@ def doctor_case_taking_view():
             notes = st.text_area("Diagnostic Rationale")
 
             if st.form_submit_button("Record Diagnosis", type="primary"):
+                if not cond_name.strip():
+                    flash_warning("Please enter a diagnosis condition name.")
+                    st.rerun()
                 payload = {
                     "visit_id": cur_vid,
-                    "diagnosis_name": cond_name,
-                    "diagnosis_code": icd_code,
+                    "diagnosis_name": cond_name.strip(),
+                    "diagnosis_code": icd_code.strip(),
                     "diagnosis_type": diag_type,
                     "notes": notes
                 }
                 res = api_request("POST", "/visits/diagnoses", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Diagnosis recorded: **{cond_name}** ({diag_type})")
-                else:
-                    st.error("Failed to record diagnosis.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Diagnosis '{cond_name}' ({diag_type}) successfully recorded!",
+                    error_prefix="Failed to record diagnosis",
+                    rerun=True
+                )
 
     with tab_rx:
         st.subheader("Prescribe Medication")
@@ -203,6 +223,9 @@ def doctor_case_taking_view():
             instructions = st.text_input("Instructions", placeholder="Take after food with warm water")
 
             if st.form_submit_button("Generate Prescription", type="primary"):
+                if not med_name.strip():
+                    flash_warning("Please enter medicine name and dosage.")
+                    st.rerun()
                 payload = {
                     "visit_id": cur_vid,
                     "patient_id": pat_id,
@@ -210,19 +233,21 @@ def doctor_case_taking_view():
                     "prescribed_date": str(date.today()),
                     "items": [
                         {
-                            "medicine_name": med_name,
-                            "dosage": dosage,
+                            "medicine_name": med_name.strip(),
+                            "dosage": dosage.strip(),
                             "frequency": freq,
                             "duration_days": int(duration),
-                            "instructions": instructions
+                            "instructions": instructions.strip()
                         }
                     ]
                 }
                 res = api_request("POST", "/visits/prescriptions", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Prescribed: **{med_name}** ({duration} days)")
-                else:
-                    st.error("Failed to save prescription.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Prescription for '{med_name}' ({duration} days) issued successfully!",
+                    error_prefix="Failed to save prescription",
+                    rerun=True
+                )
 
     with tab_soap:
         st.subheader("SOAP Clinical Documentation")
@@ -242,10 +267,12 @@ def doctor_case_taking_view():
                 "added_by": user_info.get("user_id", 1)
             }
             res = api_request("POST", "/appointments/notes", json=payload)
-            if res and res.status_code == 201:
-                st.success(":material/check_circle: SOAP Note successfully attached to appointment!")
-            else:
-                st.error("Failed to save note.")
+            handle_action_response(
+                res,
+                success_msg="SOAP Clinical Note successfully attached to appointment!",
+                error_prefix="Failed to save clinical note",
+                rerun=True
+            )
 
     with tab_summary:
         st.subheader("Conclude Consultation & Generate Medical Summary")
@@ -253,19 +280,25 @@ def doctor_case_taking_view():
         with col_gen:
             if st.button(":material/smart_toy: Generate Episode Medical Summary"):
                 res_sum = api_request("POST", f"/summaries/generate/{appt_id}")
+                handle_action_response(
+                    res_sum,
+                    success_msg="Automated episode clinical summary generated successfully!",
+                    error_prefix="Failed to generate clinical summary",
+                    rerun=False
+                )
                 if res_sum and res_sum.status_code in [200, 201]:
-                    st.success(":material/check_circle: Consultation summary generated automatically!")
                     st.json(res_sum.json())
-                else:
-                    st.info("Automated summary processed.")
 
         with col_done:
             if st.button(":material/flag: Finalize & Mark COMPLETED", type="primary"):
                 res_status = api_request("PATCH", f"/appointments/{appt_id}/status", json={"status": "Completed"})
-                if res_status and res_status.status_code == 200:
-                    st.success(":material/celebration: Consultation completed and appointment marked COMPLETED!")
-                    st.session_state.pop("active_appointment_id", None)
-                    st.rerun()
+                st.session_state.pop("active_appointment_id", None)
+                handle_action_response(
+                    res_status,
+                    success_msg="Consultation finalized! Appointment status marked as COMPLETED.",
+                    error_prefix="Failed to update appointment status",
+                    rerun=True
+                )
 
 
 def doctor_diagnostics_view():
@@ -286,7 +319,8 @@ def doctor_diagnostics_view():
 
             if st.form_submit_button("Dispatch Lab Order", type="primary"):
                 if not selected_tests:
-                    st.error("Please select at least one test.")
+                    flash_warning("Please select at least one test to order.")
+                    st.rerun()
                 else:
                     t_ids = [test_map[t] for t in selected_tests]
                     payload = {
@@ -297,10 +331,13 @@ def doctor_diagnostics_view():
                         "clinical_note": clinical_indication
                     }
                     res = api_request("POST", "/diagnostics/orders", json=payload)
-                    if res and res.status_code == 201:
-                        st.success(f":material/check_circle: Order successfully created! Order ID: #{res.json().get('order_id')}")
-                    else:
-                        st.error("Failed to submit diagnostic order.")
+                    oid = res.json().get('order_id') if res and res.status_code == 201 else ''
+                    handle_action_response(
+                        res,
+                        success_msg=f"Diagnostic lab order successfully dispatched! (Order ID #{oid})",
+                        error_prefix="Failed to submit diagnostic order",
+                        rerun=True
+                    )
 
     with tab_verify:
         st.subheader("Pending Lab Results for Verification")
@@ -318,9 +355,12 @@ def doctor_diagnostics_view():
                     
                     if st.button("Verify Result", key=f"ver_res_{r.get('result_id')}", type="primary"):
                         res_v = api_request("PUT", f"/diagnostics/results/{r.get('result_id')}/verify?verified_by={user_info.get('user_id', 1)}")
-                        if res_v and res_v.status_code == 200:
-                            st.success(":material/check_circle: Result verified!")
-                            st.rerun()
+                        handle_action_response(
+                            res_v,
+                            success_msg=f"Lab result #{r.get('result_id')} successfully verified by physician!",
+                            error_prefix="Failed to verify lab result",
+                            rerun=True
+                        )
 
     with tab_catalog:
         tests = fetch_json("/diagnostics/tests", [])
@@ -376,9 +416,12 @@ def doctor_patient_records_view():
                     if doc.get("verification_status") != "Verified":
                         if st.button("Mark Document as Verified", key=f"ver_doc_{doc.get('document_id')}"):
                             res_vd = api_request("PATCH", f"/documents/{doc.get('document_id')}/verify")
-                            if res_vd and res_vd.status_code == 200:
-                                st.success("Document verified.")
-                                st.rerun()
+                            handle_action_response(
+                                res_vd,
+                                success_msg=f"Medical document '{doc.get('title')}' marked as verified!",
+                                error_prefix="Failed to verify document",
+                                rerun=True
+                            )
         else:
             st.info("No documents uploaded for this patient.")
 

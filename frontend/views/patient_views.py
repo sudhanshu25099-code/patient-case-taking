@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime, timedelta
-from utils.api_client import api_request, fetch_json, BASE_URL
-from utils.ui_helpers import page_header, render_kpi_card, render_status_badge, check_login
+from utils.api_client import api_request, fetch_json, handle_action_response, BASE_URL
+from utils.ui_helpers import (
+    page_header, render_kpi_card, render_status_badge, check_login,
+    flash_success, flash_error, flash_warning
+)
 import requests
 
 
@@ -69,18 +72,19 @@ def patient_overview_view():
                         "full_name": person.get("full_name") or user_info.get("full_name"),
                         "date_of_birth": person.get("date_of_birth"),
                         "gender": person.get("gender"),
-                        "phone": up_phone,
+                        "phone": up_phone.strip(),
                         "email": person.get("email"),
-                        "address": up_addr,
-                        "city": up_city,
-                        "state": up_state
+                        "address": up_addr.strip(),
+                        "city": up_city.strip(),
+                        "state": up_state.strip()
                     }
                     res = api_request("PUT", f"/identity/persons/{person_id}", json=payload)
-                    if res and res.status_code == 200:
-                        st.success(":material/check_circle: Contact info updated!")
-                        st.rerun()
-                    else:
-                        st.error("Failed to update contact info.")
+                    handle_action_response(
+                        res,
+                        success_msg="Contact information updated successfully!",
+                        error_prefix="Failed to update contact info",
+                        rerun=True
+                    )
         
     with col_contact:
         st.subheader(":material/emergency: Emergency Contact & Safety")
@@ -92,7 +96,8 @@ def patient_overview_view():
         st.subheader(":material/verified_user: ABHA Linkage")
         if not patient.get("abha_linked"):
             if st.button("Link My ABHA / Ayushman Bharat ID", type="primary"):
-                st.success(":material/check_circle: ABHA Account linked successfully!")
+                flash_success("ABHA Account linked successfully!")
+                st.rerun()
         else:
             st.success(":material/check_circle: Your profile is connected with the National Health Network.")
 
@@ -145,22 +150,27 @@ def patient_appointments_view():
                 is_follow_up = st.checkbox("This is a follow-up visit")
 
                 if st.form_submit_button("Confirm Booking", type="primary"):
+                    if not reason.strip():
+                        flash_warning("Please provide a reason or chief symptom for the visit.")
+                        st.rerun()
                     payload = {
                         "patient_id": patient_id,
                         "doctor_id": doc_options[sel_doc],
                         "hospital_id": hosp_options[sel_hosp],
                         "appointment_date": str(appt_date),
                         "time_slot": str(appt_time),
-                        "reason": reason,
+                        "reason": reason.strip(),
                         "is_follow_up": is_follow_up,
                         "status": "Scheduled"
                     }
                     res = api_request("POST", "/appointments", json=payload)
-                    if res is not None and res.status_code == 201:
-                        st.success(":material/celebration: Appointment successfully booked!")
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to book appointment: {res.text if res else 'Unknown error'}")
+                    aid = res.json().get('appointment_id') if res and res.status_code == 201 else ''
+                    handle_action_response(
+                        res,
+                        success_msg=f"Consultation appointment successfully booked with {sel_doc}! (Appt #{aid})",
+                        error_prefix="Failed to book appointment",
+                        rerun=True
+                    )
 
     with tab_reschedule:
         appts = fetch_json(f"/appointments/patient/{patient_id}", [])
@@ -191,20 +201,24 @@ def patient_appointments_view():
                             "status": "Scheduled"
                         }
                         res = api_request("PUT", f"/appointments/{sel_appt['appointment_id']}", json=payload)
-                        if res and res.status_code == 200:
-                            st.success(":material/check_circle: Appointment rescheduled successfully!")
-                            st.rerun()
-                        else:
-                            st.error("Failed to reschedule.")
+                        handle_action_response(
+                            res,
+                            success_msg=f"Appointment #{sel_appt['appointment_id']} rescheduled to {new_d} at {str(new_t)[:5]} successfully!",
+                            error_prefix="Failed to reschedule appointment",
+                            rerun=True
+                        )
                             
             with c_cancel:
                 st.subheader("Cancel Appointment")
                 st.write("If you cannot attend this visit, please cancel so the slot becomes available for other patients.")
                 if st.button("Cancel This Appointment", type="secondary"):
                     res = api_request("PATCH", f"/appointments/{sel_appt['appointment_id']}/status", json={"status": "Cancelled"})
-                    if res and res.status_code == 200:
-                        st.success("Appointment cancelled.")
-                        st.rerun()
+                    handle_action_response(
+                        res,
+                        success_msg=f"Appointment #{sel_appt['appointment_id']} has been cancelled.",
+                        error_prefix="Failed to cancel appointment",
+                        rerun=True
+                    )
 
 
 def patient_medical_records_view():
@@ -299,9 +313,12 @@ def patient_documents_view():
                     
                     if st.button("Delete Document", key=f"del_doc_{doc.get('document_id')}", type="secondary"):
                         res = api_request("DELETE", f"/documents/{doc.get('document_id')}")
-                        if res and res.status_code in [200, 204]:
-                            st.success("Document deleted.")
-                            st.rerun()
+                        handle_action_response(
+                            res,
+                            success_msg=f"Medical document '{doc.get('title')}' deleted from vault successfully!",
+                            error_prefix="Failed to delete document",
+                            rerun=True
+                        )
 
     with tab_upload:
         with st.form("patient_upload_doc"):
@@ -313,27 +330,33 @@ def patient_documents_view():
             uploaded_file = st.file_uploader("Select File (PDF, PNG, JPG)", type=["pdf", "png", "jpg", "jpeg"])
 
             if st.form_submit_button("Upload to Vault", type="primary"):
-                if not title or uploaded_file is None:
-                    st.error("Please provide both a title and a file.")
+                if not title.strip() or uploaded_file is None:
+                    flash_warning("Please provide both a document title and select a file to upload.")
+                    st.rerun()
                 else:
                     files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type or "application/octet-stream")}
                     data = {
                         "patient_id": patient_id,
                         "document_type_id": type_options[sel_type],
-                        "title": title,
+                        "title": title.strip(),
                         "uploaded_by": user_info.get("user_id", 1)
                     }
-                    res = requests.post(
-                        f"{BASE_URL}/documents/upload",
-                        data=data,
-                        files=files,
-                        auth=(st.session_state["username"], st.session_state["password"])
-                    )
-                    if res.status_code == 201:
-                        st.success(":material/check_circle: Document uploaded and saved to your health vault!")
+                    try:
+                        res = requests.post(
+                            f"{BASE_URL}/documents/upload",
+                            data=data,
+                            files=files,
+                            auth=(st.session_state["username"], st.session_state["password"])
+                        )
+                        handle_action_response(
+                            res,
+                            success_msg=f"Document '{title}' uploaded and securely stored in your medical vault!",
+                            error_prefix="Document upload failed",
+                            rerun=True
+                        )
+                    except Exception as ex:
+                        flash_error(f"Upload failed: {ex}")
                         st.rerun()
-                    else:
-                        st.error(f"Upload failed: {res.text}")
 
 
 def patient_consent_view():
@@ -363,9 +386,12 @@ def patient_consent_view():
                     if c.get("status") == "Active":
                         if st.button("Revoke Access", key=f"revoke_{c.get('consent_id')}", type="secondary"):
                             res = api_request("PATCH", f"/consent/{c.get('consent_id')}/revoke")
-                            if res is not None and res.status_code == 200:
-                                st.success("Access revoked.")
-                                st.rerun()
+                            handle_action_response(
+                                res,
+                                success_msg=f"Consent #{c.get('consent_id')} revoked successfully!",
+                                error_prefix="Failed to revoke consent",
+                                rerun=True
+                            )
 
     with tab_grant:
         hospitals = fetch_json("/hospitals", [])
@@ -376,18 +402,23 @@ def patient_consent_view():
             purpose = st.text_input("Purpose", placeholder="e.g. Second Opinion, General Treatment, Specialist Consultation")
 
             if st.form_submit_button("Grant Authorization", type="primary"):
+                if not purpose.strip():
+                    flash_warning("Please specify the purpose for granting consent.")
+                    st.rerun()
                 payload = {
                     "patient_id": patient_id,
                     "hospital_id": hosp_map[sel_h],
                     "consent_type": consent_type,
-                    "purpose": purpose,
+                    "purpose": purpose.strip(),
                     "valid_from": str(datetime.now()),
                     "valid_to": str(datetime.now() + timedelta(days=90)),
                     "status": "Active"
                 }
                 res = api_request("POST", "/consent", json=payload)
-                if res is not None and res.status_code == 201:
-                    st.success(":material/check_circle: Consent successfully granted!")
-                    st.rerun()
-                else:
-                    st.error("Failed to grant consent.")
+                cid = res.json().get('consent_id') if res and res.status_code == 201 else ''
+                handle_action_response(
+                    res,
+                    success_msg=f"Consent authorization granted for {sel_h}! (Consent #{cid})",
+                    error_prefix="Failed to grant consent",
+                    rerun=True
+                )

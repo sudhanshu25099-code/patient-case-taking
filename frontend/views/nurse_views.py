@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-from utils.api_client import api_request, fetch_json
-from utils.ui_helpers import page_header, render_kpi_card, render_status_badge, check_login
+from utils.api_client import api_request, fetch_json, handle_action_response
+from utils.ui_helpers import (
+    page_header, render_kpi_card, render_status_badge, check_login,
+    flash_success, flash_error, flash_warning
+)
 
 
 def _get_nurse_context():
@@ -90,8 +93,12 @@ def nurse_checkin_view():
     with col_chk:
         if st.button(":material/check_circle: Mark Patient as Checked-In", type="primary"):
             res_chk = api_request("POST", f"/appointments/{sel_aid}/check-in")
-            if res_chk and res_chk.status_code == 200:
-                st.success("Patient check-in recorded!")
+            handle_action_response(
+                res_chk,
+                success_msg=f"Patient check-in recorded for Appointment #{sel_aid}!",
+                error_prefix="Failed to record check-in",
+                rerun=True
+            )
 
     tab_vitals, tab_symptoms = st.tabs([":material/cardiology: Triage Vitals", ":material/sick: Presenting Symptoms"])
 
@@ -118,10 +125,12 @@ def nurse_checkin_view():
                     "added_by": user_info.get("user_id", 1)
                 }
                 res = api_request("POST", "/appointments/notes", json=payload)
-                if res and res.status_code == 201:
-                    st.success(":material/check_circle: Vitals successfully recorded in pre-visit snapshot!")
-                else:
-                    st.error("Failed to save vitals.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Vitals & triage observations recorded for Appointment #{sel_aid}!",
+                    error_prefix="Failed to save vitals",
+                    rerun=True
+                )
 
     with tab_symptoms:
         st.subheader("Add Presenting Symptom")
@@ -135,18 +144,23 @@ def nurse_checkin_view():
             notes = c_dur.text_input("Details / Aggravating factors", placeholder="e.g. Worse at night")
 
             if st.form_submit_button("Attach Symptom to Pre-Visit Snapshot", type="primary"):
+                if not sym_name.strip():
+                    flash_warning("Please provide a symptom description.")
+                    st.rerun()
                 payload = {
                     "appointment_id": sel_aid,
-                    "symptom_name": sym_name,
+                    "symptom_name": sym_name.strip(),
                     "severity": severity,
                     "since_date": str(since_d),
                     "notes": notes
                 }
                 res = api_request("POST", "/appointments/symptoms", json=payload)
-                if res and res.status_code == 201:
-                    st.success(f":material/check_circle: Symptom '{sym_name}' attached to appointment pre-visit file!")
-                else:
-                    st.error("Failed to attach symptom.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Symptom '{sym_name}' attached to appointment pre-visit file!",
+                    error_prefix="Failed to attach symptom",
+                    rerun=True
+                )
 
 
 def nurse_care_view():
@@ -173,9 +187,12 @@ def nurse_care_view():
                 if al.get("status") == "Active":
                     if c2.button("Resolve", key=f"res_al_{al.get('allergy_id')}"):
                         res_ra = api_request("PATCH", f"/visits/allergies/{al.get('allergy_id')}/resolve")
-                        if res_ra and res_ra.status_code == 200:
-                            st.success("Allergy marked as Resolved.")
-                            st.rerun()
+                        handle_action_response(
+                            res_ra,
+                            success_msg=f"Allergy '{al.get('allergen')}' resolved successfully!",
+                            error_prefix="Failed to resolve allergy",
+                            rerun=True
+                        )
         else:
             st.info("No allergies on record for this patient.")
 
@@ -189,20 +206,24 @@ def nurse_care_view():
             reaction = st.text_input("Reaction Description", placeholder="e.g. Urticaria, Anaphylaxis, Rash")
 
             if st.form_submit_button("Add Allergy to Chart", type="primary"):
+                if not allergen.strip():
+                    flash_warning("Please enter allergen name.")
+                    st.rerun()
                 payload = {
                     "patient_id": pat_id,
-                    "allergen": allergen,
+                    "allergen": allergen.strip(),
                     "allergy_type": a_type,
                     "severity": severity,
                     "reaction": reaction,
                     "status": "Active"
                 }
                 res = api_request("POST", "/visits/allergies", json=payload)
-                if res and res.status_code == 201:
-                    st.success(":material/check_circle: Allergy added to patient chart!")
-                    st.rerun()
-                else:
-                    st.error("Failed to record allergy.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Allergy '{allergen}' added to patient chart!",
+                    error_prefix="Failed to record allergy",
+                    rerun=True
+                )
 
     with tab_cond:
         st.subheader("Existing Conditions")
@@ -214,9 +235,12 @@ def nurse_care_view():
                 if cd.get("status") != "Resolved":
                     if c2.button("Mark Resolved", key=f"res_cd_{cd.get('condition_id')}"):
                         res_rc = api_request("PATCH", f"/visits/conditions/{cd.get('condition_id')}/status", json={"status": "Resolved"})
-                        if res_rc and res_rc.status_code == 200:
-                            st.success("Condition marked as Resolved.")
-                            st.rerun()
+                        handle_action_response(
+                            res_rc,
+                            success_msg=f"Condition '{cd.get('condition_name')}' marked as Resolved!",
+                            error_prefix="Failed to resolve condition",
+                            rerun=True
+                        )
         else:
             st.info("No chronic conditions registered.")
 
@@ -230,19 +254,23 @@ def nurse_care_view():
             notes = st.text_area("Notes", placeholder="Diagnosed 2021, on oral hypoglycemics")
 
             if st.form_submit_button("Add Condition", type="primary"):
+                if not cond_name.strip():
+                    flash_warning("Please provide a condition name.")
+                    st.rerun()
                 payload = {
                     "patient_id": pat_id,
-                    "condition_name": cond_name,
+                    "condition_name": cond_name.strip(),
                     "condition_type": cd_type,
                     "status": status,
                     "notes": notes
                 }
                 res = api_request("POST", "/visits/conditions", json=payload)
-                if res and res.status_code == 201:
-                    st.success(":material/check_circle: Medical condition recorded!")
-                    st.rerun()
-                else:
-                    st.error("Failed to record condition.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Medical condition '{cond_name}' recorded in patient chart!",
+                    error_prefix="Failed to record condition",
+                    rerun=True
+                )
 
 
 def nurse_labs_view():
@@ -260,9 +288,12 @@ def nurse_labs_view():
                     if ord_item.get("status") == "Ordered":
                         if st.button("Mark Sample Collected / In Progress", key=f"coll_{ord_item.get('order_id')}"):
                             res_up = api_request("PATCH", f"/diagnostics/orders/{ord_item.get('order_id')}/status", json={"status": "Completed"})
-                            if res_up and res_up.status_code == 200:
-                                st.success("Order status updated.")
-                                st.rerun()
+                            handle_action_response(
+                                res_up,
+                                success_msg=f"Order #{ord_item.get('order_id')} specimen marked as collected!",
+                                error_prefix="Failed to update order status",
+                                rerun=True
+                            )
         else:
             st.info("No active lab orders.")
 
@@ -281,10 +312,12 @@ def nurse_labs_view():
                     "items": []
                 }
                 res = api_request("POST", "/diagnostics/results", json=payload)
-                if res and res.status_code == 201:
-                    st.success(":material/check_circle: Finding recorded and queued for physician verification!")
-                else:
-                    st.error("Failed to publish result.")
+                handle_action_response(
+                    res,
+                    success_msg=f"Diagnostic finding for Order Item #{oi_id} recorded and queued for physician verification!",
+                    error_prefix="Failed to publish result",
+                    rerun=True
+                )
 
     with tab_catalog:
         tests = fetch_json("/diagnostics/tests", [])

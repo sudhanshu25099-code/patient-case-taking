@@ -437,6 +437,50 @@ def _material_icon_markup(icon: str, class_name: str = "") -> str:
     return f'<span class="{classes}" aria-hidden="true">{icon_name}</span>'
 
 
+def flash_message(message: str, mtype: str = "success", icon: str = None):
+    """Register a flash notification that persists across st.rerun() and triggers a toast."""
+    toast_icon = icon or (":material/check_circle:" if mtype == "success" else ":material/error:" if mtype == "error" else ":material/info:")
+    try:
+        st.toast(message, icon=toast_icon)
+    except Exception:
+        pass
+    if "_flash_messages" not in st.session_state:
+        st.session_state["_flash_messages"] = []
+    st.session_state["_flash_messages"].append({"type": mtype, "message": message, "icon": toast_icon})
+
+
+def flash_success(message: str, icon: str = ":material/check_circle:"):
+    flash_message(message, mtype="success", icon=icon)
+
+
+def flash_error(message: str, icon: str = ":material/error:"):
+    flash_message(message, mtype="error", icon=icon)
+
+
+def flash_warning(message: str, icon: str = ":material/warning:"):
+    flash_message(message, mtype="warning", icon=icon)
+
+
+def flash_info(message: str, icon: str = ":material/info:"):
+    flash_message(message, mtype="info", icon=icon)
+
+
+def render_flash_messages():
+    """Render and drain pending flash notifications as visible banners at the top of the view."""
+    flashes = st.session_state.pop("_flash_messages", [])
+    for f in flashes:
+        mtype = f.get("type", "info")
+        msg = f.get("message", "")
+        if mtype == "success":
+            st.success(msg, icon=":material/check_circle:")
+        elif mtype == "error":
+            st.error(msg, icon=":material/error:")
+        elif mtype == "warning":
+            st.warning(msg, icon=":material/warning:")
+        else:
+            st.info(msg, icon=":material/info:")
+
+
 def page_header(title, icon="local_hospital", description=""):
     st.markdown(f"""
         <div class="hp-header-box">
@@ -448,6 +492,8 @@ def page_header(title, icon="local_hospital", description=""):
             {f'<p class="hp-header-description">{description}</p>' if description else ''}
         </div>
     """, unsafe_allow_html=True)
+    render_flash_messages()
+
 
 
 def render_kpi_card(title, value, subtitle="", icon="push_pin"):
