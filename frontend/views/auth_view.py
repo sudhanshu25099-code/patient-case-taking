@@ -1,6 +1,6 @@
 import streamlit as st
 from utils.api_client import api_request
-from utils.ui_helpers import apply_theme, flash_success, flash_error, flash_warning
+from utils.ui_helpers import apply_theme, flash_success, flash_error, flash_warning, get_logo_base64
 
 
 LOGIN_BACKGROUND_CSS = """
@@ -67,10 +67,13 @@ LOGIN_BACKGROUND_CSS = """
 def render_login_view():
     apply_theme()
     st.markdown(LOGIN_BACKGROUND_CSS, unsafe_allow_html=True)
+    logo_src = get_logo_base64()
     
-    st.markdown("""
+    st.markdown(f"""
         <div class="hp-login-hero">
-            <div class="hp-login-mark">+</div>
+            <div class="hp-login-logo-wrap">
+                <img src="{logo_src}" class="hp-login-img" alt="Clinical EHR Logo" />
+            </div>
             <div class="hp-header-eyebrow">Secure clinical operations</div>
             <div class="hp-login-title" role="heading" aria-level="1">Clinical EHR</div>
             <p class="hp-login-subtitle">

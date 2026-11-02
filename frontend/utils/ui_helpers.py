@@ -1,4 +1,17 @@
+import base64
+from pathlib import Path
 import streamlit as st
+
+_LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "logo.png"
+
+
+@st.cache_data
+def get_logo_base64() -> str:
+    """Return base64-encoded Data URL for the custom Clinical EHR logo."""
+    if _LOGO_PATH.exists():
+        data = base64.b64encode(_LOGO_PATH.read_bytes()).decode("utf-8")
+        return f"data:image/png;base64,{data}"
+    return ""
 
 
 def apply_theme():
@@ -75,6 +88,17 @@ def apply_theme():
             padding: 0.25rem 0 1rem;
             border-bottom: 1px solid var(--hp-line);
             margin-bottom: 1rem;
+        }
+
+        .hp-brand-img {
+            width: 2.5rem;
+            height: 2.5rem;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(15, 118, 110, 0.16);
+            background: #FFFFFF;
+            padding: 2px;
+            flex-shrink: 0;
         }
 
         .hp-brand-mark {
@@ -291,6 +315,24 @@ def apply_theme():
             max-width: 48rem;
             margin: 1.5rem auto 2rem;
             text-align: center;
+        }
+
+        .hp-login-logo-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 1.25rem;
+        }
+
+        .hp-login-img {
+            width: 5.25rem;
+            height: 5.25rem;
+            object-fit: contain;
+            border-radius: 20px;
+            background: #FFFFFF;
+            padding: 8px;
+            box-shadow: 0 16px 36px rgba(15, 118, 110, 0.22);
+            border: 1px solid rgba(15, 118, 110, 0.14);
         }
 
         .hp-login-mark {

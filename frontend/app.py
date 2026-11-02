@@ -1,5 +1,5 @@
 import streamlit as st
-from utils.ui_helpers import apply_theme, render_role_badge
+from utils.ui_helpers import apply_theme, render_role_badge, get_logo_base64
 from views.auth_view import render_login_view
 
 from views.doctor_views import (
@@ -23,12 +23,13 @@ from views.admin_views import (
 
 st.set_page_config(
     page_title="Clinical EHR",
-    page_icon=":material/local_hospital:",
+    page_icon="assets/logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 apply_theme()
+logo_src = get_logo_base64()
 
 # Check authentication
 if "username" not in st.session_state or not st.session_state.get("user_info"):
@@ -39,9 +40,9 @@ else:
 
     # Sidebar Header & User Profile
     with st.sidebar:
-        st.markdown("""
+        st.markdown(f"""
             <div class="hp-sidebar-brand">
-                <div class="hp-brand-mark">+</div>
+                <img src="{logo_src}" class="hp-brand-img" alt="Clinical EHR" />
                 <div>
                     <div class="hp-brand-name">Clinical EHR</div>
                     <div class="hp-brand-sub">Connected care workspace</div>
