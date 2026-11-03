@@ -189,6 +189,124 @@ def apply_theme():
             color: var(--hp-primary);
         }
 
+        .hp-wide-card {
+            position: relative;
+            overflow: hidden;
+            background: var(--hp-surface);
+            border-radius: var(--hp-radius);
+            padding: 1.15rem 1.25rem;
+            border: 1px solid var(--hp-line);
+            box-shadow: 0 3px 12px rgba(16, 42, 67, 0.04);
+            margin-bottom: 0.95rem;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 10.5rem;
+        }
+
+        .hp-wide-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: linear-gradient(180deg, var(--hp-primary), #0891B2);
+        }
+
+        .hp-wide-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(16, 42, 67, 0.08);
+            border-color: #B2D8D4;
+        }
+
+        .hp-wide-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .hp-wide-head-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hp-wide-title {
+            font-size: 0.74rem;
+            font-weight: 750;
+            color: var(--hp-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .hp-wide-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            background: var(--hp-primary-soft);
+            color: var(--hp-primary);
+        }
+
+        .hp-wide-body {
+            margin-bottom: 0.65rem;
+        }
+
+        .hp-wide-val {
+            font-size: clamp(1.85rem, 2.2vw, 2.3rem);
+            font-weight: 800;
+            color: var(--hp-ink);
+            line-height: 1;
+            letter-spacing: -0.04em;
+        }
+
+        .hp-wide-sub {
+            font-size: 0.78rem;
+            color: var(--hp-muted);
+            margin-top: 0.25rem;
+            font-weight: 500;
+        }
+
+        .hp-wide-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+            gap: 0.45rem;
+            margin-top: auto;
+            padding-top: 0.55rem;
+            border-top: 1px dashed var(--hp-line);
+        }
+
+        .hp-detail-pill {
+            background: #F8FAFC;
+            border: 1px solid var(--hp-line);
+            border-radius: 8px;
+            padding: 0.35rem 0.55rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hp-detail-label {
+            font-size: 0.62rem;
+            color: var(--hp-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.035em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hp-detail-val {
+            font-size: 0.85rem;
+            color: var(--hp-ink);
+            font-weight: 750;
+            margin-top: 0.05rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .material-symbols-rounded {
             font-family: "Material Symbols Rounded";
             font-weight: normal;
@@ -581,3 +699,33 @@ def check_login():
     if "username" not in st.session_state or not st.session_state.get("user_info"):
         st.warning(":material/warning: Please log in first.")
         st.stop()
+
+
+def render_wide_kpi_card(title, value, subtitle="", icon="push_pin", badge="", details=None):
+    """Render an executive wide-angle KPI card with rich detail pills (code-block free)."""
+    badge_html = f'<span class="hp-wide-badge">{badge}</span>' if badge else ""
+    pills_html = ""
+    if details:
+        pill_items = "".join(
+            f'<div class="hp-detail-pill"><span class="hp-detail-label">{d_lbl}</span><span class="hp-detail-val">{d_val}</span></div>'
+            for d_lbl, d_val in details
+        )
+        pills_html = f'<div class="hp-wide-details">{pill_items}</div>'
+
+    sub_html = f'<div class="hp-wide-sub">{subtitle}</div>' if subtitle else ""
+    icon_html = _material_icon_markup(icon)
+
+    raw_html = (
+        f'<div class="hp-wide-card">'
+        f'<div class="hp-wide-head">'
+        f'<div class="hp-wide-head-left"><span class="hp-wide-title">{title}</span>{badge_html}</div>'
+        f'<span class="hp-card-icon">{icon_html}</span>'
+        f'</div>'
+        f'<div class="hp-wide-body">'
+        f'<div><div class="hp-wide-val">{value}</div>{sub_html}</div>'
+        f'</div>'
+        f'{pills_html}'
+        f'</div>'
+    )
+    clean_html = " ".join(raw_html.split())
+    st.markdown(clean_html, unsafe_allow_html=True)
