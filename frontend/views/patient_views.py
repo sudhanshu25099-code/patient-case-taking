@@ -126,6 +126,15 @@ def patient_appointments_view():
                     
                     if a.get("notes"):
                         st.markdown(f"**Clinic Notes:** {a.get('notes')}")
+                    
+                    appt_det = fetch_json(f"/appointments/{a.get('appointment_id')}", {})
+                    intake_notes = appt_det.get("notes", [])
+                    for n in intake_notes:
+                        note_txt = n.get("note_text", "")
+                        if "VITALS:" in note_txt:
+                            st.info(f":material/vital_signs: **Recorded Triage Vitals:** {note_txt.replace('VITALS: ', '')}")
+                        else:
+                            st.caption(f":material/note: **Staff Note:** {note_txt}")
 
     with tab_book:
         st.subheader("Book an Appointment")

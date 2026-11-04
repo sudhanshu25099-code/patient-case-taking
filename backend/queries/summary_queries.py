@@ -17,6 +17,12 @@ def create_summary(conn: Connection, d: dict) -> int:
     """), d).lastrowid
 
 
+def set_previous_summaries_inactive(conn: Connection, patient_id: int):
+    conn.execute(text("""
+        UPDATE medical_summary SET is_current = FALSE WHERE patient_id = :p
+    """), {"p": patient_id})
+
+
 def get_summary(conn: Connection, summary_id: int):
     return conn.execute(
         text(f"SELECT {SUM_COLS} FROM medical_summary WHERE summary_id = :id"),

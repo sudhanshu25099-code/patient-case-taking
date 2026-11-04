@@ -274,7 +274,7 @@ def nurse_care_view():
 
 
 def nurse_labs_view():
-    page_header("Lab Orders & Specimen Tracking", ":material/experiment:", "Monitor laboratory orders and specimen collection status")
+    page_header("Lab Orders & Specimen Tracking", ":material/experiment:", "Monitor laboratory orders, track specimens, and record diagnostic test findings")
 
     tab_orders, tab_results, tab_catalog = st.tabs([":material/assignment: Lab Orders Tracking", ":material/experiment: Enter Test Results", ":material/menu_book: Test Catalog"])
 
@@ -282,15 +282,26 @@ def nurse_labs_view():
         orders = fetch_json("/diagnostics/orders", [])
         if orders:
             for ord_item in orders:
-                with st.expander(f"Order #{ord_item.get('order_id')} (Status: {ord_item.get('status')})"):
-                    st.write(f"**Visit ID:** {ord_item.get('visit_id')} | **Doctor:** {ord_item.get('doctor_name') or 'Physician'}")
-                    st.write(f"**Clinical Indication:** {ord_item.get('clinical_note') or 'Routine'}")
+                oid = ord_item.get("order_id")
+                st_badge = ord_item.get("status")
+                with st.expander(f"Order #{oid} — Status: {st_badge} • Dr. {ord_item.get('doctor_name') or 'Physician'}"):
+                    c1, c2 = st.columns(2)
+                    c1.write(f"**Visit ID:** #{ord_item.get('visit_id')} | **Order Date:** {str(ord_item.get('order_date'))[:16]}")
+                    c2.write(f"**Clinical Indication:** {ord_item.get('clinical_note') or 'Routine investigation'}")
+
+                    # List items under this order
+                    items = fetch_json(f"/diagnostics/orders/{oid}/items", [])
+                    if items:
+                        st.markdown("**Ordered Investigations:**")
+                        for it in items:
+                            st.markdown(f"- **Item #{it.get('order_item_id')}**: Test ID #{it.get('test_id')} — *Status: {it.get('status')}*")
+
                     if ord_item.get("status") == "Ordered":
-                        if st.button("Mark Sample Collected / In Progress", key=f"coll_{ord_item.get('order_id')}"):
-                            res_up = api_request("PATCH", f"/diagnostics/orders/{ord_item.get('order_id')}/status", json={"status": "Completed"})
+                        if st.button("Mark Sample Collected / In Progress", key=f"coll_{oid}"):
+                            res_up = api_request("PATCH", f"/diagnostics/orders/{oid}/status", json={"status": "Completed"})
                             handle_action_response(
                                 res_up,
-                                success_msg=f"Order #{ord_item.get('order_id')} specimen marked as collected!",
+                                success_msg=f"Order #{oid} specimen marked as collected!",
                                 error_prefix="Failed to update order status",
                                 rerun=True
                             )
@@ -298,26 +309,78 @@ def nurse_labs_view():
             st.info("No active lab orders.")
 
     with tab_results:
-        with st.form("enter_lab_result_form"):
-            st.subheader("Enter Diagnostic Test Finding")
-            oi_id = st.number_input("Order Item ID", min_value=1, step=1, value=1)
-            finding = st.text_area("Overall Finding / Summary", placeholder="Parameters within standard limits.")
+        st.subheader("Record Diagnostic Test Findings")
+        order_items = fetch_json("/diagnostics/order-items", [])
 
-            if st.form_submit_button("Publish Finding", type="primary"):
-                payload = {
-                    "order_item_id": oi_id,
-                    "report_date": str(date.today()),
-                    "overall_finding": finding,
-                    "verification_status": "Pending",
-                    "items": []
-                }
-                res = api_request("POST", "/diagnostics/results", json=payload)
-                handle_action_response(
-                    res,
-                    success_msg=f"Diagnostic finding for Order Item #{oi_id} recorded and queued for physician verification!",
-                    error_prefix="Failed to publish result",
-                    rerun=True
-                )
+        if not order_items:
+            st.info("No diagnostic test orders found in the system.")
+        else:
+            only_pending = st.checkbox("Show only pending test items without results", value=True)
+            display_items = [i for i in order_items if not i.get("result_id")] if only_pending else order_items
+
+            if not display_items:
+                st.success("All test items currently have results published! Uncheck 'Show only pending' above to review or update existing findings.")
+            else:
+                def item_display(i):
+                    pat = i.get('patient_name') or f"Visit #{i.get('visit_id')}"
+                    t_name = i.get('test_name') or f"Test #{i.get('test_id')}"
+                    cat = i.get('category') or 'Lab'
+                    has_res = "✓ Recorded" if i.get("result_id") else "⏳ Pending Result"
+                    return f"Item #{i['order_item_id']} (Order #{i['order_id']}) • {t_name} [{cat}] — {pat} ({has_res})"
+
+                selected_item = st.selectbox("Select Test Order Item to Record Result", display_items, format_func=item_display)
+
+                if selected_item:
+                    is_done = bool(selected_item.get("result_id"))
+                    border_color = "#16a34a" if is_done else "#0284c7"
+                    bg_color = "#f0fdf4" if is_done else "#f8fafc"
+
+                    st.markdown(f"""
+                    <div style="background-color: {bg_color}; border: 1px solid #cbd5e1; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 8px; margin: 12px 0 20px 0;">
+                        <h4 style="margin: 0 0 8px 0; color: #0f172a;">{selected_item.get('test_name')} ({selected_item.get('category')})</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.95em; color: #334155;">
+                            <div><strong>Patient:</strong> {selected_item.get('patient_name') or 'N/A'}</div>
+                            <div><strong>Ordering Doctor:</strong> Dr. {selected_item.get('doctor_name') or 'Physician'}</div>
+                            <div><strong>Order Ref:</strong> Order #{selected_item.get('order_id')} (Item #{selected_item.get('order_item_id')})</div>
+                            <div><strong>Order Date:</strong> {str(selected_item.get('order_date'))[:16]}</div>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 0.9em; color: #475569;">
+                            <strong>Clinical Indication:</strong> <em>{selected_item.get('clinical_note') or 'None specified'}</em>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    existing_finding = selected_item.get("overall_finding") or ""
+
+                    with st.form("enter_lab_result_form"):
+                        report_dt = st.date_input("Report Date", value=date.today())
+                        finding = st.text_area(
+                            "Overall Finding / Summary",
+                            value=existing_finding,
+                            height=130,
+                            placeholder="e.g. All parameters within standard physiological limits. No acute pathology observed."
+                        )
+
+                        btn_label = "Update Diagnostic Finding" if is_done else "Publish Diagnostic Finding"
+                        if st.form_submit_button(btn_label, type="primary"):
+                            if not finding.strip():
+                                flash_warning("Please enter a summary of the test findings before publishing.")
+                                st.rerun()
+
+                            payload = {
+                                "order_item_id": selected_item["order_item_id"],
+                                "report_date": str(report_dt),
+                                "overall_finding": finding.strip(),
+                                "verification_status": "Pending",
+                                "items": []
+                            }
+                            res = api_request("POST", "/diagnostics/results", json=payload)
+                            handle_action_response(
+                                res,
+                                success_msg=f"Diagnostic finding for '{selected_item.get('test_name')}' (Item #{selected_item['order_item_id']}) recorded and forwarded for doctor verification!",
+                                error_prefix="Failed to publish result",
+                                rerun=True
+                            )
 
     with tab_catalog:
         tests = fetch_json("/diagnostics/tests", [])

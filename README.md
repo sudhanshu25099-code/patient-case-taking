@@ -184,7 +184,7 @@ patient-case-taking/
 │       ├── nurse_views.py    # Triage, check-in vitals, care records, lab tracking
 │       └── patient_views.py  # Health profile, appointments, summaries, consent
 │
-└── db_schema/                # Database initialization and seed scripts
+└── database/                 # Database initialization, schemas, triggers, and seed scripts
     ├── 01_user_hospital_schema.sql
     ├── 02_clinical_schema.sql
     ├── 03_document_consent_schema.sql

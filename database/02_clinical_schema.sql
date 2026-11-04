@@ -163,7 +163,7 @@ CREATE TABLE prescription (
 CREATE TABLE prescription_item (
     item_id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     prescription_id    INT UNSIGNED NOT NULL,
-    medicine_name      VARCHAR(200) NOT NULL,
+    medicine_name      VARCHAR(500) NOT NULL,
     dosage             VARCHAR(80),
     frequency          VARCHAR(80),
     route              VARCHAR(40),
@@ -171,7 +171,7 @@ CREATE TABLE prescription_item (
     start_date         DATE,
     end_date           DATE,
     is_ongoing         BOOLEAN NOT NULL DEFAULT FALSE,
-    instructions       VARCHAR(255),
+    instructions       VARCHAR(500),
     KEY idx_pitem_presc (prescription_id),
     CONSTRAINT fk_pitem_presc FOREIGN KEY (prescription_id) REFERENCES prescription(prescription_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

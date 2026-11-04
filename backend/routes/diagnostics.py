@@ -40,6 +40,11 @@ def list_all_orders(conn: Connection = Depends(get_db_connection)):
     return [dict(o) for o in q.list_all_orders(conn)]
 
 
+@router.get("/order-items")
+def list_all_order_items(conn: Connection = Depends(get_db_connection)):
+    return [dict(r) for r in q.list_all_order_items(conn)]
+
+
 @router.post("/orders", response_model=TestOrderOut, status_code=201)
 def create_order(p: TestOrderCreate, conn: Connection = Depends(get_db_connection)):
     data = p.model_dump(exclude={"test_ids"})

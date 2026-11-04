@@ -635,53 +635,184 @@ def admin_audit_view():
     check_login()
     page_header("Security Audit & Access Logs", ":material/receipt_long:", "Enterprise access ledger, audit trail, and compliance tracing")
 
+    # --- Audit Summary KPIs ---
+    summary = fetch_json("/logs/audit-summary", {})
+    stats = summary.get("stats", {})
+    if stats:
+        k1, k2, k3, k4, k5 = st.columns(5)
+        k1.metric("Total Events", stats.get("total_events", 0))
+        k2.metric("Inserts", stats.get("inserts", 0), delta_color="normal")
+        k3.metric("Updates", stats.get("updates", 0), delta_color="normal")
+        k4.metric("Deletes", stats.get("deletes", 0), delta_color="inverse")
+        k5.metric("Tables Monitored", stats.get("tables_monitored", 0))
+        st.caption(f"Audit coverage from {str(stats.get('earliest_event', 'N/A'))[:16]} to {str(stats.get('latest_event', 'N/A'))[:16]}")
+        st.markdown("---")
+
     tab_audit, tab_access, tab_notif, tab_queries = st.tabs([
         ":material/receipt_long: Database Table Audit", ":material/admin_panel_settings: Access Logs", ":material/notifications: Notifications", ":material/bolt: Live MySQL Queries"
     ])
 
     with tab_audit:
-        sel_table = st.selectbox("Select Table Audit Trail", ["appointment", "patient_profile", "consent_record", "medical_document", "test_order"])
-        audits = fetch_json(f"/logs/audit/{sel_table}", [])
+        triggers = fetch_json("/logs/db/triggers", [])
+        trg_count = len(triggers)
+        with st.expander(f":material/verified: Active Database Audit Triggers ({trg_count} Active in MySQL Engine)"):
+            st.caption("All 26 triggers in `database/05_audit_triggers.sql` execute directly inside the MySQL engine to automatically capture INSERT, UPDATE, and DELETE actions into `audit_trail`.")
+            if triggers:
+                st.dataframe(pd.DataFrame(triggers), use_container_width=True, hide_index=True)
+            else:
+                st.info("No active triggers detected. Run `database/05_audit_triggers.sql` in MySQL to enable automated auditing.")
+
+        # Get all audited tables dynamically from DB
+        audited_tables = fetch_json("/logs/audit/tables", [])
+        all_table_names = [t["table_name"] for t in audited_tables]
+        MONITORED_TABLES = [
+            "appointment", "visit", "visit_diagnosis", "prescription", "prescription_item",
+            "allergy", "patient_condition", "test_order", "test_result",
+            "patient_consent", "medical_document", "medical_summary", "user_account"
+        ]
+        # Merge: tables with records first, then all monitored tables
+        display_tables = list(dict.fromkeys(all_table_names + MONITORED_TABLES))
+
+        c_tbl, c_act, c_ref = st.columns([3, 2, 1])
+        sel_table = c_tbl.selectbox("Select Table Audit Trail", display_tables,
+                                     format_func=lambda t: f"{t} ({next((x['record_count'] for x in audited_tables if x['table_name']==t), 0)} events)")
+        action_filter = c_act.selectbox("Filter by Action", ["All", "INSERT", "UPDATE", "DELETE"])
+        with c_ref:
+            st.write("")
+            if st.button(":material/refresh: Refresh", key="ref_audit"):
+                st.rerun()
+
+        act_param = action_filter if action_filter != "All" else None
+        url = f"/logs/audit/{sel_table}" + (f"?action_type={act_param}" if act_param else "")
+        audits = fetch_json(url, [])
+
         if audits:
-            st.dataframe(pd.DataFrame(audits), use_container_width=True, hide_index=True)
+            df = pd.DataFrame(audits)
+            # Format action_type with color icons
+            def fmt_action(a):
+                icons = {"INSERT": "?? INSERT", "UPDATE": "?? UPDATE", "DELETE": "?? DELETE"}
+                return icons.get(a, a)
+            if "action_type" in df.columns:
+                df["action_type"] = df["action_type"].apply(fmt_action)
+            # Reorder columns for readability
+            col_order = [c for c in ["audit_id", "action_time", "action_type", "table_name", "record_id", "user_name", "username", "remarks", "old_value", "new_value"] if c in df.columns]
+            df = df[col_order]
+            st.dataframe(df, use_container_width=True, hide_index=True, height=450)
+            st.caption(f"Showing {len(audits)} audit records for table `{sel_table}`.")
+
+            # Recent activity feed
+            if summary.get("recent_activity"):
+                st.markdown("#### :material/history: Recent Activity (All Tables)")
+                for ev in summary["recent_activity"][:8]:
+                    icon = {"INSERT": ":material/add_circle:", "UPDATE": ":material/edit:", "DELETE": ":material/delete:"}.get(ev.get("action_type"), ":material/info:")
+                    st.caption(f"{icon} `{ev.get('action_time', '')[:16]}` ? **{ev.get('action_type')}** on `{ev.get('table_name')}` #{ev.get('record_id')} by {ev.get('user_name') or 'System'} ? {ev.get('remarks') or ''}")
         else:
-            st.info(f"No logged audit records for table '{sel_table}'.")
+            st.info(f"No audit records yet for table `{sel_table}`. Records will appear here automatically once changes are made via the application.")
+            st.markdown("> **Note:** All future INSERT, UPDATE, and DELETE operations on this table will be automatically captured by MySQL triggers ? no manual logging required.")
 
     with tab_access:
-        users = fetch_json("/identity/users", [])
-        if users:
-            u_map = {f"{u['username']} ({u['full_name']})": u["user_id"] for u in users}
-            sel_u = st.selectbox("Inspect Access Logs for User", list(u_map.keys()))
-            logs = fetch_json(f"/logs/access/user/{u_map[sel_u]}", [])
-            if logs:
-                st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
+        c_view, c_filter = st.columns([2, 1])
+        view_mode = c_view.radio("View Mode", ["By User", "All Logs (Recent)"], horizontal=True)
+        with c_filter:
+            if st.button(":material/refresh: Refresh", key="ref_access"):
+                st.rerun()
+
+        if view_mode == "By User":
+            users = fetch_json("/identity/users", [])
+            if users:
+                u_map = {f"{u['username']} ({u['full_name']})": u["user_id"] for u in users}
+                sel_u = st.selectbox("Inspect Access Logs for User", list(u_map.keys()))
+                logs = fetch_json(f"/logs/access/user/{u_map[sel_u]}", [])
+                if logs:
+                    st.dataframe(pd.DataFrame(logs), use_container_width=True, hide_index=True)
+                else:
+                    st.info("No recorded access logs for this user.")
+        else:
+            all_logs = fetch_json("/logs/access/all?limit=200", [])
+            if all_logs:
+                df_al = pd.DataFrame(all_logs)
+                col_order_al = [c for c in ["log_id", "action_time", "action_type", "user_name", "username", "patient_name", "ip_address", "remarks"] if c in df_al.columns]
+                st.dataframe(df_al[col_order_al], use_container_width=True, hide_index=True, height=450)
+                st.caption(f"Showing {len(all_logs)} most recent access events.")
             else:
-                st.info("No recorded access logs for this user.")
+                st.info("No access log entries recorded yet.")
 
     with tab_notif:
-        notifs = fetch_json("/logs/notifications/1", [])
+        user_info = st.session_state.get("user_info", {})
+        uid = user_info.get("user_id", 1)
+        notifs = fetch_json(f"/logs/notifications/{uid}", [])
+        unread = [n for n in notifs if not n.get("is_read")]
+        st.caption(f"{len(unread)} unread notification(s) for your account.")
         if notifs:
             for n in notifs:
-                with st.expander(f"Notification #{n.get('notification_id')} (Read: {n.get('is_read')})"):
+                read_icon = ":material/mark_email_read:" if n.get("is_read") else ":material/notifications_active:"
+                with st.expander(f"{read_icon} {n.get('title') or 'Notification'} ? {str(n.get('created_at',''))[:16]}"):
                     st.write(n.get("message"))
                     if not n.get("is_read"):
                         if st.button("Mark as Read", key=f"notif_r_{n.get('notification_id')}"):
                             res = api_request("PATCH", f"/logs/notifications/{n.get('notification_id')}/read")
                             handle_action_response(res, "Notification marked as read!", "Failed to update notification", rerun=True)
         else:
-            st.info("No notifications pending.")
+            st.info("No notifications.")
 
     with tab_queries:
-        st.subheader(":material/bolt: Live MySQL Connections & Queries")
-        st.caption("Active threads, connection states, and executing SQL statements from MySQL Server.")
-        if st.button(":material/refresh: Refresh Queries", key="ref_proc"):
-            st.rerun()
+        st.subheader(":material/bolt: Live MySQL Engine & Query Inspector")
+        st.caption("Real-time execution log from performance_schema ? capture JOIN queries, execution latency, and connection states.")
 
-        procs = fetch_json("/logs/db/processlist", [])
-        if procs:
-            st.dataframe(pd.DataFrame(procs), use_container_width=True, hide_index=True)
+        q_mode = st.radio("Query Monitor View", ["Recent Executed SQL (Live History)", "Query Pattern Analytics (Digest)", "Active Worker Threads (Processlist)"], horizontal=True)
+
+        if q_mode == "Recent Executed SQL (Live History)":
+            c_f1, c_f2, c_btn = st.columns([2, 2, 1])
+            join_only = c_f1.checkbox("Only show queries with JOINs", value=False)
+            limit_q = c_f2.slider("Max Queries", 10, 100, 30, step=10)
+            with c_btn:
+                st.write("")
+                if st.button(":material/refresh: Refresh", key="ref_live_q"):
+                    st.rerun()
+
+            queries = fetch_json(f"/logs/db/queries?join_only={join_only}&limit={limit_q}", [])
+            if queries:
+                for q_item in queries:
+                    q_text = q_item.get("query", "")
+                    has_join = bool(q_item.get("has_join"))
+                    badge = ":material/join: **JOIN QUERY**" if has_join else ":material/code: **SQL**"
+                    lat = q_item.get("latency_ms", 0)
+                    rows_sent = q_item.get("rows_sent", 0)
+                    rows_exam = q_item.get("rows_examined", 0)
+                    first_line = q_text.splitlines()[0][:80]
+
+                    with st.expander(f"{badge} ? {first_line}... ({lat} ms | Sent: {rows_sent} rows | Examined: {rows_exam})"):
+                        st.code(q_text, language="sql")
+                        c_m1, c_m2, c_m3 = st.columns(3)
+                        c_m1.metric("Execution Latency", f"{lat} ms")
+                        c_m2.metric("Rows Sent", rows_sent)
+                        c_m3.metric("Rows Examined", rows_exam)
+            else:
+                st.info("No recent queries captured yet. Perform an action in the app (e.g. view appointments or patients) and refresh.")
+
+        elif q_mode == "Query Pattern Analytics (Digest)":
+            c_d1, c_d2 = st.columns([3, 1])
+            d_join = c_d1.checkbox("Filter by JOIN queries only", value=False, key="d_join")
+            with c_d2:
+                if st.button(":material/refresh: Refresh", key="ref_digest"):
+                    st.rerun()
+
+            digests = fetch_json(f"/logs/db/digest?join_only={d_join}&limit=50", [])
+            if digests:
+                df_d = pd.DataFrame(digests)
+                col_d_order = [c for c in ["query_template", "exec_count", "avg_latency_ms", "max_latency_ms", "total_rows_sent", "total_rows_examined", "last_executed"] if c in df_d.columns]
+                st.dataframe(df_d[col_d_order], use_container_width=True, hide_index=True, height=450)
+            else:
+                st.info("No query digest statistics available.")
+
         else:
-            st.info("No active queries currently running.")
+            if st.button(":material/refresh: Refresh Connections", key="ref_proc"):
+                st.rerun()
+            procs = fetch_json("/logs/db/processlist", [])
+            if procs:
+                st.dataframe(pd.DataFrame(procs), use_container_width=True, hide_index=True)
+            else:
+                st.info("No active thread queries currently running.")
 
 
 def admin_ai_assistant_view():
