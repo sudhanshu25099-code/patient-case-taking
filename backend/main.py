@@ -13,6 +13,7 @@ from config import settings
 from routes import (
     identity, hospital, appointments, visits_clinical, diagnostics,
     documents, consent, medical_summary, logging_notifications, previsit,
+    ai,
 )
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
@@ -25,7 +26,8 @@ app.add_middleware(
 )
 
 for r in (identity, hospital, appointments, visits_clinical, diagnostics,
-          documents, consent, medical_summary, logging_notifications, previsit):
+          documents, consent, medical_summary, logging_notifications, previsit,
+          ai):
     app.include_router(r.router)
 
 

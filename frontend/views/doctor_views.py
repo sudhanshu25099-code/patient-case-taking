@@ -6,7 +6,7 @@ from utils.ui_helpers import (
     page_header, render_kpi_card, render_status_badge, check_login,
     flash_success, flash_error, flash_warning
 )
-from utils.ai_engine import generate_mock_summary
+from utils.ai_engine import generate_mock_summary, summarize_text, summarize_visit, summarize_patient, get_ai_config
 
 
 def _get_doctor_context():
@@ -427,20 +427,62 @@ def doctor_patient_records_view():
 
 
 def doctor_ai_assistant_view():
-    page_header("AI Clinical Assistant", ":material/neurology:", "Clinical NLP note summarization, symptom extraction, and decision support")
+    page_header("AI Clinical Assistant", ":material/neurology:", "Groq-powered clinical NLP summarization, symptom extraction, and decision support")
 
-    st.info(":material/lightbulb: Paste raw doctor consultation thoughts, symptoms, or nurse intake logs below. The AI Clinical Engine extracts key symptoms and generates structured recommendations.")
+    cfg = get_ai_config()
+    if not cfg.get("groq_configured"):
+        st.warning(
+            ":material/warning: **Groq API key not configured.** Using mock engine. "
+            "Ask your admin to configure the Groq API key in Admin → AI Assistant → Settings."
+        )
+    else:
+        st.success(f":material/check_circle: Groq connected — `{cfg.get('model')}`")
 
-    raw_text = st.text_area(
-        "Clinical Input Notes",
-        height=180,
-        placeholder="Patient reports progressive dry cough since 4 days, low grade evening fever with chills, mild shortness of breath on exertion. Denies chest pain or hemoptysis. BP 128/82, SpO2 97%."
-    )
+    tab_notes, tab_visit, tab_patient = st.tabs([
+        ":material/auto_awesome: Summarize Notes",
+        ":material/assignment: Summarize Visit",
+        ":material/person: Summarize Patient",
+    ])
 
-    if st.button("Generate AI Clinical Summary", type="primary"):
-        if not raw_text.strip():
-            st.warning("Please enter some clinical text to analyze.")
-        else:
-            with st.spinner("Processing medical NLP analysis..."):
-                analysis = generate_mock_summary(raw_text)
+    with tab_notes:
+        st.info(":material/lightbulb: Paste raw consultation thoughts, symptoms, or nurse intake logs below.")
+        raw_text = st.text_area(
+            "Clinical Input Notes",
+            height=180,
+            placeholder="Patient reports progressive dry cough since 4 days, low grade evening fever with chills, mild shortness of breath on exertion. Denies chest pain or hemoptysis. BP 128/82, SpO2 97%."
+        )
+        context = st.selectbox("Note Context", ["clinical", "discharge", "radiology", "nursing", "pharmacy", "general"])
+
+        if st.button(":material/auto_awesome: Generate AI Summary", type="primary", use_container_width=True):
+            if not raw_text.strip():
+                st.warning("Please enter some clinical text to analyze.")
+            else:
+                with st.spinner("Calling Groq — processing medical NLP..."):
+                    analysis = summarize_text(raw_text, context=context)
+                st.markdown("---")
                 st.markdown(analysis)
+
+    with tab_visit:
+        st.info(":material/lightbulb: Select a visit to generate a full AI-powered episode summary from the database.")
+        visit_id = st.number_input("Visit ID", min_value=1, step=1, value=1, key="ai_visit_id")
+        if st.button(":material/auto_awesome: Summarize Visit", type="primary", use_container_width=True):
+            with st.spinner("Fetching visit data and calling Groq..."):
+                result = summarize_visit(visit_id)
+            st.markdown("---")
+            st.markdown(result)
+
+    with tab_patient:
+        st.info(":material/lightbulb: Generate a longitudinal health summary for a patient from all their records.")
+        doctor_id, user_info, _ = _get_doctor_context()
+        patients = fetch_json("/identity/patients", [])
+        if patients:
+            pat_map = {f"{p['full_name']} (ID: {p['patient_id']})": p["patient_id"] for p in patients}
+            sel = st.selectbox("Select Patient", list(pat_map.keys()), key="ai_pat_sel")
+            pid = pat_map[sel]
+            if st.button(":material/auto_awesome: Summarize Patient History", type="primary", use_container_width=True):
+                with st.spinner("Building patient summary with Groq..."):
+                    result = summarize_patient(pid)
+                st.markdown("---")
+                st.markdown(result)
+        else:
+            st.warning("No patients found.")

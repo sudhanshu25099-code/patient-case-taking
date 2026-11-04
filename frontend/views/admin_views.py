@@ -6,7 +6,9 @@ from utils.ui_helpers import (
     page_header, render_kpi_card, render_wide_kpi_card, render_status_badge, check_login,
     flash_success, flash_error, flash_warning
 )
-from utils.ai_engine import generate_mock_summary
+from utils.ai_engine import (
+    generate_mock_summary, summarize_text, get_ai_config, save_groq_api_key
+)
 
 
 def admin_overview_view():
@@ -684,9 +686,109 @@ def admin_audit_view():
 
 def admin_ai_assistant_view():
     check_login()
-    page_header("AI Clinical Assistant", ":material/neurology:", "Clinical NLP note summarization, symptom extraction, and decision support")
+    page_header("AI Clinical Assistant", ":material/neurology:", "Groq-powered clinical NLP summarization, symptom extraction, and decision support")
 
-    raw_text = st.text_area("Clinical Input Notes", height=180, placeholder="Paste clinical text to analyze...")
-    if st.button("Generate AI Clinical Summary", type="primary"):
-        if raw_text:
-            st.markdown(generate_mock_summary(raw_text))
+    # ── Tabs: Summarize | Settings ──────────────────────────────────────────
+    tab_summarize, tab_settings = st.tabs([
+        ":material/auto_awesome: Summarize Clinical Notes",
+        ":material/settings: Groq API Settings",
+    ])
+
+    # ── Tab 1: Text Summarization ───────────────────────────────────────────
+    with tab_summarize:
+        cfg = get_ai_config()
+        if not cfg.get("groq_configured"):
+            st.warning(
+                ":material/warning: **Groq API key not configured.** "
+                "The assistant will fall back to a basic mock engine. "
+                "Go to the **Groq API Settings** tab to add your key."
+            )
+        else:
+            st.success(
+                f":material/check_circle: Groq connected — model: `{cfg.get('model')}` "
+                f"| Key: `{cfg.get('api_key_preview')}`"
+            )
+
+        st.info(":material/lightbulb: Paste raw consultation notes, nurse intake logs, or SOAP notes below. "
+                "The AI engine extracts key clinical insights and generates a structured report.")
+
+        raw_text = st.text_area(
+            "Clinical Input Notes",
+            height=200,
+            placeholder=(
+                "Patient presents with progressive dry cough since 4 days, low-grade evening fever "
+                "with chills, mild shortness of breath on exertion. Denies chest pain or hemoptysis. "
+                "BP 128/82, SpO2 97%, HR 88 bpm. No known allergies."
+            )
+        )
+
+        col_btn, col_ctx = st.columns([2, 3])
+        with col_ctx:
+            context = st.selectbox(
+                "Note Context",
+                ["clinical", "discharge", "radiology", "pathology", "nursing", "pharmacy", "general"],
+                help="Gives the AI model a hint about the type of medical text."
+            )
+
+        with col_btn:
+            generate_btn = st.button(
+                ":material/auto_awesome: Generate AI Summary",
+                type="primary",
+                use_container_width=True,
+                disabled=not raw_text.strip()
+            )
+
+        if generate_btn:
+            if not raw_text.strip():
+                st.warning("Please enter some clinical text to analyze.")
+            else:
+                with st.spinner("Calling Groq LLM — processing medical NLP..."):
+                    analysis = summarize_text(raw_text, context=context)
+                st.markdown("---")
+                st.markdown("### :material/summarize: AI-Generated Clinical Summary")
+                st.markdown(analysis)
+
+    # ── Tab 2: Groq Settings ────────────────────────────────────────────────
+    with tab_settings:
+        st.subheader(":material/key: Groq API Key Configuration")
+        st.caption(
+            "Your Groq API key is stored in `backend/.env` and loaded on startup. "
+            "Updating it here takes effect immediately without restarting the server."
+        )
+
+        cfg = get_ai_config()
+
+        if cfg.get("groq_configured"):
+            st.success(f":material/check_circle: **Connected** — Key: `{cfg.get('api_key_preview')}` | Model: `{cfg.get('model')}`")
+        else:
+            st.error(":material/error: **Not configured** — Add your Groq API key below to enable AI summaries.")
+
+        st.markdown("---")
+        with st.form("groq_key_form"):
+            new_key = st.text_input(
+                "Groq API Key",
+                type="password",
+                placeholder="gsk_...",
+                help="Get your free key at https://console.groq.com/keys"
+            )
+            col_save, col_link = st.columns([1, 2])
+            with col_save:
+                submitted = st.form_submit_button(":material/save: Save API Key", type="primary")
+            with col_link:
+                st.markdown(
+                    "<small>🔗 <a href='https://console.groq.com/keys' target='_blank'>Get a free Groq key →</a></small>",
+                    unsafe_allow_html=True
+                )
+
+            if submitted:
+                if not new_key.strip():
+                    st.error("API key cannot be empty.")
+                else:
+                    success, msg = save_groq_api_key(new_key.strip())
+                    if success:
+                        st.success(f":material/check_circle: {msg}")
+                        st.rerun()
+                    else:
+                        st.error(f":material/error: {msg}")
+
+       

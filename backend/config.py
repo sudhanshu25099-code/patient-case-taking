@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "Patient Record System API"
     DEBUG: bool = True
 
+    # Groq AI configuration
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
+
     model_config = SettingsConfigDict(
         env_file=(str(BASE_DIR / ".env"), ".env"),
         extra="ignore",
